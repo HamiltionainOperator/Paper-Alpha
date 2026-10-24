@@ -151,6 +151,9 @@ class CombinerTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.store = Store(Path(self.tmp.name) / "t.sqlite")
         self.cfg = Config.load(None)
+        # random fixtures have noisy two-year windows (series 1 + 2: 1.96 overall, 1.21 lately); the 2-year gate has
+        # its own test below
+        self.cfg.data["combine"]["recent_sharpe_margin"] = 0
         self.ctx = SimpleNamespace(cfg=self.cfg, store=self.store, scope=SCOPE, pp=self.cfg.section("power_pool"),
                                    sync=SimpleNamespace(client=None), catalog=None, constraints=None, route="regular")
         self.n = 0
@@ -375,6 +378,37 @@ class CombinerTests(unittest.TestCase):
         self.add("eps_rev", "anl", "analyst", 1.6, dense)
         parts = Combiner(self.ctx, generator=None, simulator=None).parts(Lifecycle(self.ctx, submitted=[]).families())
         self.assertEqual([p.row["fields"] for p in parts], [["eps_rev"]])
+
+    def test_a_combination_whose_parts_faded_in_the_last_two_years_is_not_proposed(self):
+        def regime(seed, early, late, n=2500, last=504):
+            rnd = random.Random(seed)
+            return {f"2015-{i:05d}": (early if i < n - last else late) / math.sqrt(252) + rnd.gauss(0, 1)
+                    for i in range(n)}
+
+        self.cfg.data["combine"]["recent_sharpe_margin"] = 1.0
+        self.store.kv_set("submitted_alphas", [])
+        self.store.kv_set("pyramid_multipliers", {})
+        self.add("iv_spread", "opt", "option", 1.8, regime(1, 2.2, 0.0))
+        self.add("eps_rev", "anl", "analyst", 1.8, regime(2, 2.2, 0.0))
+        comb = Combiner(self.ctx, generator=None, simulator=None)
+        lc = Lifecycle(self.ctx, submitted=[])
+        parts = comb.parts(lc.families())
+        corr = {(x.row["id"], y.row["id"]): 0.0 for x in parts for y in parts}
+        faded = comb.estimate(parts, corr)
+        self.assertGreater(faded.sharpe, 1.1 * 1.58)       # the whole history clears the bar with margin...
+        self.assertLess(faded.recent_sharpe, 1.0)          # ...the last two years do not (BRAIN's LOW_2Y_SHARPE)
+        self.assertEqual(comb.combos(5), [])
+
+        self.tearDown()
+        self.setUp()                                       # the same parts, still working in the last two years
+        self.cfg.data["combine"]["recent_sharpe_margin"] = 1.0
+        self.store.kv_set("submitted_alphas", [])
+        self.store.kv_set("pyramid_multipliers", {})
+        self.add("iv_spread", "opt", "option", 1.8, regime(1, 2.2, 2.2))
+        self.add("eps_rev", "anl", "analyst", 1.8, regime(2, 2.2, 2.2))
+        combos = Combiner(self.ctx, generator=None, simulator=None).combos(5)
+        self.assertEqual(len(combos), 1)
+        self.assertGreater(combos[0].recent_sharpe, 1.58)
 
 
 class RegularLifecycleTests(unittest.TestCase):

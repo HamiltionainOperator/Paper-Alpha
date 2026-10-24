@@ -91,6 +91,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("simulate", help="simulate queued (validated) alphas on BRAIN")
     p.add_argument("--limit", type=int)
     sub.add_parser("reconcile", help="recover results of simulations that finished while the engine was stopped")
+    p = sub.add_parser("restore", help="rebuild the local memory from the account's own alphas on BRAIN (a fresh checkout "
+                                       "or cloud session then knows every idea already tried and has its parts)")
+    p.add_argument("--limit", type=int, help="newest alphas to read (default restore.max_alphas)")
     sub.add_parser("reevaluate", help="re-score stored simulation results with the current rules")
     p = sub.add_parser("refine", help="create variants of near-miss alphas")
     p.add_argument("--limit", type=int)
@@ -353,6 +356,19 @@ def _main(argv=None) -> int:
     if cmd == "reconcile":
         console.print(f"{eng.reconcile()}")
         return 0
+    if cmd == "restore":
+        if eng.client is None:
+            console.print("[red]restore reads the account's alphas from the BRAIN API: set BRAIN_EMAIL / BRAIN_PASSWORD "
+                          "or run `p2a login` first[/red]")
+            return 1
+        res = eng.restore(args.limit)
+        _table("alphas restored from the BRAIN account", ["scope", "verdicts (regular eligible / pending, else Power Pool)"],
+               [[k, ", ".join(f"{s} {n}" for s, n in sorted(v.items(), key=lambda kv: -kv[1]))]
+                for k, v in sorted(res["scopes"].items())])
+        console.print(f"  {res['restored']} restored, {res['attached']} attached to queued rows, {res['known']} already "
+                      f"known, {res['references']} crowded reference factor(s) kept for the uniqueness screen, "
+                      f"{res['skipped']} skipped (SuperAlphas, Region Agnostic alphas)")
+        return 0
     if cmd == "refine":
         ids = eng.refine(scope, theme(), args.limit, use_llm=not args.no_llm, ids=args.ids, route=route)
         if args.simulate and ids:
@@ -377,9 +393,11 @@ def _main(argv=None) -> int:
                 for role in m.roles:
                     c = mb.resolver.candidates(role)
                     filled.append(f"{role}: {c[0]['id'] if c else '-'} (+{max(0, len(c) - 1)})")
-                rows.append([m.id, "enhancer" if m.enhancer else m.group, "ok" if m.available else
-                             f"missing {', '.join(sorted(m.missing_ops))}", "; ".join(filled) or "-"])
-            _table("research mechanisms", ["mechanism", "group", "operators", "roles -> live fields"], rows)
+                rows.append([m.id, "enhancer" if m.enhancer else m.group, ", ".join(m.regions) or "all",
+                             "ok" if m.available else f"missing {', '.join(sorted(m.missing_ops))}",
+                             "; ".join(filled) or "-"])
+            _table(f"research mechanisms ({scope['region']}/{scope['universe']}/D{scope['delay']})",
+                   ["mechanism", "group", "regions", "operators", "roles -> live fields"], rows)
             return 0
         ids = eng.mechanisms(scope, theme(), args.n, route=route, only=args.only)
         if ids and args.simulate:

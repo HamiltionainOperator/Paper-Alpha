@@ -1,5 +1,14 @@
 # Research findings - 2026-10-16
 
+## Round 15: prepared, not simulated (24 Oct 2026)
+
+- The session could not reach BRAIN (the cloud environment's network policy denied `api.worldquantbrain.com`), so this
+  round has no measurements. The run order for the next session is `research/round15_plan.md`.
+- Engine: `p2a restore` rebuilds the local store from the account's alphas, so a fresh checkout keeps the history.
+  The combiner estimates each combination's last-two-years Sharpe and proposes only those that clear BRAIN's 2-year
+  test. Five new mechanisms only run in the regions their research covers (CHN, IND, ASI, JPN): value, value without
+  shell stocks, abnormal turnover, profitability, and country x industry value plus quality.
+
 ## Round 13: signal inventory and EUR source scan (20 Oct 2026)
 
 - **Signal inventory** (`p2a inventory`). It lists every simulated part of a scope with its verdict: used, crowded,

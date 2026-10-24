@@ -125,7 +125,8 @@ class Lifecycle:
         self.used_keys = {family_key(a["fields"], lib.class_of(code_operators(a.get("code")))) for a in self.submitted
                           if a.get("fields") and a.get("region") in (None, sc["region"])
                           and int(a.get("delay") or sc["delay"]) == int(sc["delay"])}
-        self.submitted_ids = {a.get("id") for a in self.submitted if a.get("id")}
+        # plus alphas submitted earlier and since decommissioned (no longer ACTIVE; `p2a restore` records them)
+        self.submitted_ids = {a.get("id") for a in self.submitted if a.get("id")} | set(ctx.store.kv_get("submitted_ever") or [])
 
     # -- thresholds -------------------------------------------------------------------------
     @property

@@ -26,6 +26,14 @@ PLATFORM_ALPHA_URL = "https://platform.worldquantbrain.com/alpha/{}"
 def _same_scope(a: dict, b: dict) -> bool:
     return (a["region"], a["universe"], int(a["delay"])) == (b["region"], b["universe"], int(b["delay"]))
 
+
+def _epoch(stamp) -> float | None:
+    """Seconds since the epoch of a BRAIN timestamp such as 2026-10-20T10:11:12-04:00."""
+    try:
+        return datetime.fromisoformat(str(stamp).replace("Z", "+00:00")).timestamp()
+    except (TypeError, ValueError):
+        return None
+
 class Engine:
     def __init__(self, cfg: Config, offline: bool = False, interactive: bool = True):
         self.cfg = cfg
@@ -340,15 +348,16 @@ class Engine:
         return ids
 
     # -- simulation ------------------------------------------------------------------------------
-    def _evaluate_row(self, row: dict, alpha: dict) -> dict:
-        from .routes import record_themes
+    def _evaluate_row(self, row: dict, alpha: dict, record_themes: bool = True) -> dict:
+        from .routes import record_themes as remember_themes
         ev = evaluate(alpha, self.cfg.section("power_pool"), self.cfg.section("scoring"), self.cfg.section("refine"),
                       structural={"pp_op_count": row.get("pp_op_count") or 0, "n_fields": len(row.get("fields") or [])},
                       quality=self.cfg.section("quality"), regular=self.cfg.section("regular"),
                       datasets=row.get("datasets"), measured=row.get("stats") or {})
         s = row.get("settings") or {}
-        record_themes(self.store, ev.checks, {"region": s.get("region") or row.get("region"),
-                                              "delay": s.get("delay", row.get("delay"))})
+        if record_themes:  # themes in an old result are not themes BRAIN shows today
+            remember_themes(self.store, ev.checks, {"region": s.get("region") or row.get("region"),
+                                                    "delay": s.get("delay", row.get("delay"))})
         return {"stats": ev.stats, "checks": ev.checks, "classifications": alpha.get("classifications") or [],
                 "pp_status": ev.status, "pp_reasons": ev.reasons, "score": ev.score,
                 "reg_status": ev.reg_status, "reg_reasons": ev.reg_reasons}
@@ -384,6 +393,89 @@ class Engine:
             st = upd["stats"]
             console.print(f"  recovered #{r['id']} -> {a['id']}: {upd['pp_status']} Sharpe {st.get('sharpe')} "
                           f"TO {st.get('turnover')} | {esc(r['canonical'][:70])}")
+        return out
+
+    def restore(self, limit: int | None = None) -> dict:
+        """Rebuild the local memory from the account's own alphas on BRAIN. The store (.p2a/) never leaves the machine
+        it was made on, so a fresh checkout or a new cloud session starts without the ideas already tried: the
+        lifecycle would simulate them again, and the combiner and the inventory would have no parts. Every REGULAR
+        alpha the store does not hold yet becomes a simulated row. Its code is analysed against the live catalog of
+        its own region, universe and delay (fields, datasets, operator counts, families); BRAIN's settings, results
+        and checks are kept as BRAIN reported them. Idempotent. Daily PnL is fetched later, when a step needs it."""
+        from ..fastexpr import analyze
+        from ..util import stable_hash
+        from . import references
+        from .generator import Candidate, equivalent_source
+        self.client.ensure_auth()
+        if not self.store.operators():  # the analysis needs the operator catalog, not a full sync
+            self.sync.sync_operators(with_docs=False)
+        if not self.store.kv_get("settings_options"):
+            self.sync.sync_settings()
+        known = {r["brain_id"] for r in self.store.q("SELECT brain_id FROM alphas WHERE brain_id IS NOT NULL")}
+        mono = self.cfg.get("fastexpr.monotonic_in_rank") or []
+        out = {"restored": 0, "attached": 0, "known": 0, "skipped": 0, "references": 0, "scopes": {}}
+        gens: dict = {}
+        ever = set(self.store.kv_get("submitted_ever") or [])  # submitted at some point, ACTIVE or decommissioned since
+        for a in self.client.paginate("/users/self/alphas", {"order": "-dateCreated"}, page_size=100,
+                                      max_items=int(limit or self.cfg.get("restore.max_alphas", 5000))):
+            if a.get("dateSubmitted") and a.get("id"):
+                ever.add(a["id"])
+            code = ((a.get("regular") or {}).get("code") or "").strip()
+            s = a.get("settings") or {}
+            if (a.get("type") or "REGULAR") != "REGULAR" or not code or not s.get("universe") \
+                    or s.get("region") in (None, "", "ALL"):
+                out["skipped"] += 1  # SuperAlphas and Region Agnostic alphas are not single-scope expressions
+                continue
+            if a.get("id") in known:
+                out["known"] += 1
+                continue
+            scope = self.scope(s["region"], s["universe"], int(s.get("delay", 1)))
+            ref = references.match(self.cfg, code, s)
+            if ref is not None:  # a crowded reference factor: kept where references.py reads it, never as an alpha row
+                rkey = references.scope_key(scope, ref["id"])
+                if not (self.store.kv_get(rkey) or {}).get("brain_id"):
+                    is_ = a.get("is") or {}
+                    self.store.kv_set(rkey, {"brain_id": a["id"], "expression": ref["expression"],
+                                             "sharpe": is_.get("sharpe"), "turnover": is_.get("turnover")})
+                out["references"] += 1
+                continue
+            key = f"{scope['region']}/{scope['universe']}/D{scope['delay']}"
+            if key not in gens:
+                gens[key] = Generator(self.context(scope, None, "regular"))
+            gen = gens[key]
+            an = analyze(code, gen.ctx.catalog, gen.ctx.constraints)
+            # the engine's own settings keys (its payloads and duplicate detection use them), with BRAIN's values
+            settings = {k: s.get(k, v) for k, v in {**gen.ctx.defaults, **scope}.items()}
+            c = Candidate(raw={"expression": code}, expression=code, analysis=an, settings=settings,
+                          description=(a.get("regular") or {}).get("description") or "", origin="restore",
+                          equivalent=equivalent_source(an, mono))
+            row = gen.row(c, None)
+            canonical = an.canonical or code
+            row.update(payload_hash=stable_hash({"regular": c.equivalent or canonical, "settings": settings}),
+                       canonical=canonical, status="simulated", brain_id=a["id"],
+                       shape_class=gen.shape_class(c) if an.program is not None else None,
+                       simulated_at=_epoch(a.get("dateCreated")) or time.time())
+            aid = self.store.add_alpha(row)
+            if aid is None:  # the same code and settings are stored already: give that row this result if it has none
+                twin = self.store.alpha_by_hash(row["payload_hash"])
+                if twin is None or twin.get("brain_id"):
+                    out["known"] += 1
+                    continue
+                aid, row = twin["id"], twin
+                self.store.update_alpha(aid, status="simulated", brain_id=a["id"],
+                                        simulated_at=_epoch(a.get("dateCreated")) or time.time())
+                out["attached"] += 1
+            else:
+                out["restored"] += 1
+            known.add(a["id"])
+            upd = self._evaluate_row(row, a, record_themes=False)
+            self.store.update_alpha(aid, **upd)
+            tally = out["scopes"].setdefault(key, {})
+            label = upd.get("reg_status") if upd.get("reg_status") in ("eligible", "pending") else upd["pp_status"]
+            tally[label] = tally.get(label, 0) + 1
+            if (out["restored"] + out["attached"]) % 50 == 0:
+                console.print(f"  restored {out['restored'] + out['attached']} alpha(s)...")
+        self.store.kv_set("submitted_ever", sorted(ever))
         return out
 
     def simulate(self, limit: int | None = None, ids: list[int] | None = None) -> dict:

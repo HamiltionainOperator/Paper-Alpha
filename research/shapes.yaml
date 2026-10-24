@@ -251,6 +251,18 @@ combine_groups:
     sources: ["Xing, Zhang and Zhao (2010) JFQA", "An, Ang, Bali and Cakici (2014) JF",
               "Price, Doran, Peterson and Bliss (2012) JBF", "Chen, Nagar and Schoenfeld (2018) RAST",
               "Engelberg, Reed and Ringgenberg (2018) JF"]
+  value_and_profitability:
+    kinds: [value_ep, value_ep_ex_shell, profitability, quality_value]
+    rationale: "value and profitability are two views of what a firm is worth against its price: cheap firms are often
+      the unprofitable ones, so the two premia hedge each other and together earn more per unit of risk than either,
+      in every region and most strongly in emerging markets"
+    sources: ["Novy-Marx (2013) JFE", "Asness, Frazzini and Pedersen (2019) RAS", "Jensen, Kelly and Pedersen (2023) JF"]
+  china_value_sentiment:
+    kinds: [value_ep, value_ep_ex_shell, abnormal_turnover, profitability]
+    rationale: "in China's retail-dominated market, where short sales are limited, prices drift from earnings value and
+      swing with sentiment; earnings-to-price (outside the shell-priced smallest firms) and low abnormal turnover are
+      the value and sentiment factors of the Chinese four-factor model"
+    sources: ["Liu, Stambaugh and Yuan (2019) JFE"]
   integrated_model:
     kinds: [forecast, implied, flow, analyst_estimate, surprise, sentiment, quality_value, short_term_reversal, momentum,
             news_overnight, overnight, board_network, earnings_management, organization_capital, intangible_capital,

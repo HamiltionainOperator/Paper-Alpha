@@ -135,7 +135,9 @@ theme); `p2a pyramids` lists them. What makes an alpha unique, measured on this 
 - **Combinations dilute it.** The combiner (`p2a combine`) joins 2-3 economically linked signals from different
   data sources (groups in `research/shapes.yaml` `combine_groups`), estimated from the daily PnL BRAIN already
   reported: Sharpe adds up when parts are weakly correlated, and the correlation with any production alpha is
-  divided by the volatility of the sum. Only combinations whose estimate clears 1.1x the bar are simulated.
+  divided by the volatility of the sum. Only combinations whose estimate clears 1.1x the bar are simulated. On the
+  regular route the estimate over the parts' last two years must clear the bar too (BRAIN's 2-year test, which sank
+  EUR composites whose parts faded in 2022-23).
 - **Risk-factor neutralization** (SLOW, FAST, SLOW_AND_FAST, CROWDING, ...) lowered production correlation by
   0.08-0.12 at a similar Sharpe; it is the one settings change the regular route uses ("decorrelate"), once per
   family, chosen by turnover.
@@ -163,10 +165,16 @@ pip install -r requirements.txt
 cp .env.example .env        # then fill in BRAIN_EMAIL / BRAIN_PASSWORD (and OPENROUTER_API_KEY if not already set)
 python3 -m p2a doctor       # checks keys, login, free models, catalog, theme
 python3 -m p2a sync         # one-time catalog + docs sync (a few minutes; cached)
+python3 -m p2a restore      # fresh checkout or cloud session: rebuild the local memory from your BRAIN alphas
 ```
 
 If your BRAIN account uses biometric sign-in, `p2a login` prints a link to open in your browser.
 The session cookie is cached in `.p2a/session.json` (permissions 600).
+
+The local store (`.p2a/`) stays on the machine that made it. In a fresh checkout or a cloud session, `p2a restore`
+rebuilds it from the account's own alphas: every idea already tried, with BRAIN's settings, results and checks (daily
+PnL is fetched when a step needs it). The lifecycle then skips decided ideas, and the combiner and the inventory have
+their parts without new simulations. Running it again only adds alphas created since.
 
 ## Use
 
@@ -203,6 +211,7 @@ python3 -m p2a explore --route regular --n 10 --simulate # probes of the least-u
 python3 -m p2a combine --n 8 --simulate                  # combinations estimated to clear Sharpe 1.58 x 1.1
 python3 -m p2a references                               # PnL correlation with crowded reference factors (local)
 python3 -m p2a mechanisms --only iv_smirk --simulate     # research mechanisms (research/mechanisms.yaml)
+python3 -m p2a mechanisms --list --region CHN            # live fields each role resolves to; region-scoped mechanisms
 python3 -m p2a combine --origin mechanism: --simulate    # composites of research mechanisms only
 python3 -m p2a uniqueness                                # production / self-correlation via the fast endpoints
 python3 -m p2a check --top 5                             # BRAIN's full submission check (both routes)
@@ -212,7 +221,9 @@ python3 -m p2a inventory --region EUR --universe TOP2500 # simulated parts still
 python3 -m p2a osmosis --csv osmosis.csv                 # Osmosis points plan per scope (read-only)
 ```
 
-Other regions: `--region EUR --universe TOP2500` (run `p2a sync` with the same flags first).
+Other regions: `--region EUR --universe TOP2500` (run `p2a sync` with the same flags first). Mechanisms with
+`regions:` in `research/mechanisms.yaml` (value, profitability and sentiment for CHN, IND, ASI and JPN) are proposed
+only there. The next round's run order is in `research/round15_plan.md`.
 
 **Osmosis.** BRAIN combines the alphas you give Osmosis points to, per scope (region x delay). It uses the combo's PnL
 for a 1-2x multiplier on the daily base payment, for Combined Osmosis Performance in Genius and for the leaderboard.

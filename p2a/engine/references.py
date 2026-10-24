@@ -18,13 +18,30 @@ from ..util import console
 from .lifecycle import daily_pnl, pnl_correlation
 
 
+def scope_key(scope: dict, rid: str) -> str:
+    return f"reference:{scope['region']}:{scope['delay']}:{scope['universe']}:{rid}"
+
+
 def _key(ctx, rid: str) -> str:
-    s = ctx.scope
-    return f"reference:{s['region']}:{s['delay']}:{s['universe']}:{rid}"
+    return scope_key(ctx.scope, rid)
 
 
 def specs(cfg) -> list[dict]:
     return list(cfg.get("uniqueness.references") or [])
+
+
+def match(cfg, code: str, settings: dict) -> dict | None:
+    """The reference whose simulation this is (its exact expression with its neutralization and decay), if any."""
+    code = " ".join((code or "").split())
+    for r in specs(cfg):
+        if code != " ".join(r["expression"].split()):
+            continue
+        if r.get("neutralization") and str(settings.get("neutralization", "")).upper() != str(r["neutralization"]).upper():
+            continue
+        if r.get("decay") is not None and int(settings.get("decay") or 0) != int(r["decay"]):
+            continue
+        return r
+    return None
 
 
 def _settled(rec: dict, r: dict) -> bool:

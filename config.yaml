@@ -28,6 +28,9 @@ brain:
     stop_when_remaining_below: 25 # daily simulation quota guard (X-Ratelimit-Remaining)
   check_timeout_s: 600            # waiting for /alphas/{id}/check correlation results (slow when BRAIN is busy)
 
+restore:                          # p2a restore: the local store (.p2a/) stays on the machine that made it; a fresh
+  max_alphas: 5000                # checkout or cloud session rebuilds it from the account's newest alphas on BRAIN
+
 # Default simulation scope. Must be valid per OPTIONS /simulations (validated at runtime).
 target:
   instrumentType: EQUITY
@@ -243,6 +246,9 @@ combine:
   haircut_from_turnover: 0.2      # 0.8 was fitted on 8 combinations under risk scaling (2026-10-16)
   max_turnover: 0.45              # mean part turnover above this: fitness and the estimate both fail
   fitness_margin: 1.0             # regular route: estimated fitness >= regular.min_fitness x this
+  recent_days: 504                # regular route: the combination's Sharpe over its parts' last two years of PnL must
+  recent_sharpe_margin: 1.0       # clear the bar x this (BRAIN's LOW_2Y_SHARPE). 20 Oct, EUR #837-#840: 1.46-1.55 over
+                                  # the whole history but about 1.24 over the last two years, where parts had faded
 
 # Power Pool themes: paste each month's rules from
 # https://support.worldquantbrain.com/hc/en-us/articles/38927747787031-Current-month-Power-Pool-Themes

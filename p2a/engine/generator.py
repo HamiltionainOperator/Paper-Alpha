@@ -461,11 +461,32 @@ class Generator:
             return {}
         return {k: f for k, f in fams.items() if f.state in ("used", "dropped", "winner")}
 
+    def row(self, c: Candidate, hypothesis_id: int | None) -> dict:
+        """The store row of a candidate: its analysis, settings, description and status (valid, skipped, invalid)."""
+        ctx = self.ctx
+        grouping = ctx.constraints.grouping_fields if ctx.constraints else set()
+        excluded = ctx.constraints.excluded_ops if ctx.constraints else set()
+        an = c.analysis
+        return {
+            "payload_hash": c.payload_hash if c.ok else stable_hash({"invalid": c.expression, "n": random.random()}),
+            "canonical": an.canonical or None, "expression": c.expression, "settings": c.settings,
+            "hypothesis_id": hypothesis_id, "parent_id": c.parent_id, "origin": c.origin, "model": c.model,
+            "theme": ctx.theme.name if ctx.theme else None, "region": ctx.scope["region"],
+            "delay": ctx.scope["delay"], "universe": c.settings.get("universe", ctx.scope["universe"]),
+            "fields": an.counted_fields(grouping), "operators": an.operators,
+            "categories": an.categories(grouping), "datasets": an.datasets(grouping),
+            "op_count": an.op_count, "pp_op_count": an.pp_op_count(excluded),
+            "description": c.description, "rationale": c.raw.get("idea"),
+            "status": ("skipped" if c.skip else "valid") if c.ok else "invalid",
+            "shape": c.raw.get("shape"), "shape_class": self.shape_class(c) if c.ok else None,
+            "route": getattr(ctx, "route", None) or "power_pool",
+            "issues": [i.render() for i in an.issues] + c.notes + ([c.skip] if c.skip else []),
+        }
+
     def save(self, cands: list[Candidate], hypothesis_id: int | None) -> dict:
         ctx = self.ctx
         stats = {"valid": 0, "invalid": 0, "duplicate": 0, "skipped": 0, "ids": []}
         grouping = ctx.constraints.grouping_fields if ctx.constraints else set()
-        excluded = ctx.constraints.excluded_ops if ctx.constraints else set()
         closed = self._closed_families(cands)
         for c in cands:
             an = c.analysis
@@ -473,21 +494,7 @@ class Generator:
                 fam = closed.get(family_key(an.counted_fields(grouping), self.shape_class(c)))
                 if fam is not None:  # the lifecycle already decided about these exact fields
                     c.skip = f"skipped: family {fam.state} ({fam.reason})"
-            row = {
-                "payload_hash": c.payload_hash if c.ok else stable_hash({"invalid": c.expression, "n": random.random()}),
-                "canonical": an.canonical or None, "expression": c.expression, "settings": c.settings,
-                "hypothesis_id": hypothesis_id, "parent_id": c.parent_id, "origin": c.origin, "model": c.model,
-                "theme": ctx.theme.name if ctx.theme else None, "region": ctx.scope["region"],
-                "delay": ctx.scope["delay"], "universe": c.settings.get("universe", ctx.scope["universe"]),
-                "fields": an.counted_fields(grouping), "operators": an.operators,
-                "categories": an.categories(grouping), "datasets": an.datasets(grouping),
-                "op_count": an.op_count, "pp_op_count": an.pp_op_count(excluded),
-                "description": c.description, "rationale": c.raw.get("idea"),
-                "status": ("skipped" if c.skip else "valid") if c.ok else "invalid",
-                "shape": c.raw.get("shape"), "shape_class": self.shape_class(c) if c.ok else None,
-                "route": getattr(ctx, "route", None) or "power_pool",
-                "issues": [i.render() for i in an.issues] + c.notes + ([c.skip] if c.skip else []),
-            }
+            row = self.row(c, hypothesis_id)
             aid = ctx.store.add_alpha(row)
             if aid is None:
                 stats["duplicate"] += 1

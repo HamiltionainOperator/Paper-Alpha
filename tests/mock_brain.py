@@ -91,11 +91,11 @@ class Handler(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length") or 0)
         return json.loads(self.rfile.read(n) or b"null") if n else None
 
-    def _page(self, items, qs):
+    def _page(self, items, qs, max_limit=50):
         limit = int(qs.get("limit", ["50"])[0])
         offset = int(qs.get("offset", ["0"])[0])
-        if limit > 50:
-            return self._send(400, {"limit": ["Ensure this value is less than or equal to 50."]})
+        if limit > max_limit:
+            return self._send(400, {"limit": [f"Ensure this value is less than or equal to {max_limit}."]})
         self._send(200, {"count": len(items), "results": items[offset:offset + limit]})
 
     # -- verbs ---------------------------------------------------------------------
@@ -155,6 +155,11 @@ class Handler(BaseHTTPRequestHandler):
                 if sim["polls"] < 2:
                     return self._send(200, {"progress": 0.5}, {"Retry-After": "0.2"})
                 return self._send(200, sim["result"])
+        if path == "/users/self/alphas":  # the account's alphas, newest first
+            items = sorted(st.alphas.values(), key=lambda a: a.get("dateCreated") or "", reverse=True)
+            if "status" in qs:
+                items = [a for a in items if a.get("status") == qs["status"][0]]
+            return self._page(items, qs, max_limit=100)
         if path.startswith("/alphas/") and path.endswith("/check"):
             aid = path.split("/")[2]
             with st.lock:

@@ -84,6 +84,7 @@ class Combo:
     turnover: float | None = None
     sub_ratio: float | None = None     # estimated sub-universe Sharpe / Sharpe of the combination
     sub_required: float | None = None  # what BRAIN requires of that ratio
+    recent_sharpe: float | None = None  # estimated Sharpe of the last `combine.recent_days` (BRAIN's 2-year test)
     notes: list[str] = field(default_factory=list)
 
 
@@ -351,10 +352,13 @@ class Combiner:
         tos = [_f(x.get("turnover")) for x in st]
         rets = [_f(x.get("returns")) for x in st]
         turnover = sum(tos) / n if all(t is not None for t in tos) else None
-        sharpe = res[0]
+        haircut = 1.0
         if turnover is not None:
-            sharpe *= max(0.0, 1.0 - float(cfg.get("turnover_haircut", 0.8))
+            haircut = max(0.0, 1.0 - float(cfg.get("turnover_haircut", 0.8))
                           * max(0.0, turnover - float(cfg.get("haircut_from_turnover", 0.2))))
+        sharpe = res[0] * haircut
+        recent = combo_stats([p.pnl for p in parts], int(cfg.get("recent_days", 504)), ws,
+                             cfg.get("estimate_scaling", "position"))
         fitness = None
         if turnover is not None and all(r is not None for r in rets):
             rbar = sum(cs) / len(cs)
@@ -367,7 +371,8 @@ class Combiner:
                      prod_est=round(prod_est, 3), value=round(value, 4),
                      fitness=round(fitness, 3) if fitness is not None else None,
                      turnover=round(turnover, 3) if turnover is not None else None,
-                     sub_ratio=sub_ratio, sub_required=sub_required)
+                     sub_ratio=sub_ratio, sub_required=sub_required,
+                     recent_sharpe=round(recent[0] * haircut, 3) if recent else None)
 
     @staticmethod
     def sub_universe(parts: list[Part], corr: dict) -> tuple[float | None, float | None]:
@@ -478,12 +483,16 @@ class Combiner:
         max_to = float(cfg.get("max_turnover", 0.45))
 
         sub_margin = float(cfg.get("sub_universe_margin", 1.02))
+        # regular alphas must also clear the Sharpe bar over the last two years (LOW_2Y_SHARPE); Power Pool is exempt
+        recent_bar = lc.floor * float(cfg.get("recent_sharpe_margin", 1.0)) if regular else None
 
         def good(c: Combo) -> bool:
             if c.sharpe < bar or (c.turnover is not None and c.turnover > max_to):
                 return False
             if c.sub_ratio is not None and c.sub_required is not None and c.sub_ratio < c.sub_required * sub_margin:
                 return False  # the combination would fail the sub-universe test (its liquid part is too weak)
+            if recent_bar and c.recent_sharpe is not None and c.recent_sharpe < recent_bar:
+                return False  # parts that faded lately: whole-history Sharpe passes, the 2-year test fails
             return not regular or c.fitness is None or c.fitness >= min_fit
 
         def final_ok(c: Combo) -> bool:
@@ -494,11 +503,14 @@ class Combiner:
             return good(c)
 
         def score(c: Combo) -> float:
-            """Estimated Sharpe, discounted when the combination would fail the sub-universe test: the search grows
-            towards combinations that can pass every test, not only towards the highest Sharpe."""
-            if c.sub_ratio is None or not c.sub_required:
-                return c.sharpe
-            return c.sharpe * min(1.0, c.sub_ratio / (c.sub_required * sub_margin))
+            """Estimated Sharpe, discounted when the combination would fail the sub-universe or the 2-year test: the
+            search grows towards combinations that can pass every test, not only towards the highest Sharpe."""
+            s = c.sharpe
+            if c.sub_ratio is not None and c.sub_required:
+                s *= min(1.0, c.sub_ratio / (c.sub_required * sub_margin))
+            if recent_bar and c.recent_sharpe is not None:
+                s *= min(1.0, max(0.0, c.recent_sharpe) / recent_bar)
+            return s
 
         pairs = [c for c in (candidate(g, final=False) for g in combinations(parts, 2)) if c is not None]
         found = [c for c in pairs if final_ok(c)]
@@ -589,7 +601,7 @@ class Combiner:
                                    "carries a similar share of the risk; subtracting 0.5 centres it; add(..., filter=true) "
                                    "averages the parts and counts a missing part as neutral instead of dropping the stock.",
             "_estimate": {"sharpe": c.sharpe, "fitness": c.fitness, "turnover": c.turnover,
-                          "sub_ratio": c.sub_ratio, "sub_required": c.sub_required,
+                          "sub_ratio": c.sub_ratio, "sub_required": c.sub_required, "recent_sharpe": c.recent_sharpe,
                           "max_corr": c.max_corr, "prod_est": c.prod_est, "value": c.value,
                           "parts": [p.row["id"] for p in c.parts], "group": c.group, "names": names, "notes": c.notes},
         }
@@ -632,8 +644,9 @@ class Combiner:
             fit = f", fitness ~{c.fitness:.2f}" if c.fitness is not None else ""
             sub = (f", sub-universe ~{c.sub_ratio:.2f} (needs {c.sub_required:.2f})"
                    if c.sub_ratio is not None and c.sub_required is not None else "")
+            two = f", last 2y ~{c.recent_sharpe:.2f}" if c.recent_sharpe is not None else ""
             labels = [str(p.row["id"]) if p.weight == 1.0 else f"{p.weight:g}x{p.row['id']}" for p in c.parts]
-            console.print(f"    est. Sharpe {est['sharpe']:.2f}{fit}{sub}, parts corr <= {est['max_corr']:.2f}, "
+            console.print(f"    est. Sharpe {est['sharpe']:.2f}{fit}{sub}{two}, parts corr <= {est['max_corr']:.2f}, "
                           f"prod corr ~{est['prod_est']:.2f} [{c.group}]: {' + '.join(labels)}")
             cand = self.gen.check(raw, origin=f"combine:{c.group}")
             out.append(cand)

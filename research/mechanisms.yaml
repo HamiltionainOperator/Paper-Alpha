@@ -5,6 +5,9 @@
 # This is knowledge, not engine code. Fields are never named here: each template has ROLES, and a role is
 # filled from the LIVE catalog by matching field ids / descriptions (regexes, case-insensitive), preferring high
 # coverage and few existing alphas (uncrowded). Templates whose operators the account lacks are disabled.
+# A role may list exact `ids` verified in one region before its patterns: the ids lead where they exist, the
+# patterns fill the role elsewhere. A mechanism with `regions` is proposed only there (the research found the
+# effect in those markets); naming it with `p2a mechanisms --only` runs it anywhere.
 #
 # Why these mechanisms (fundamental law, IR ~ TC x IC x sqrt(breadth)): Sharpe 3-4 at delay 1 needs information
 # that arrives daily and decays within days (breadth), measured against residual rather than raw returns (IC),
@@ -246,6 +249,40 @@ roles:
     patterns: ["^implied volatility rank based on 30-day iv"]
     prefer: ["long-term"]
     min_coverage: 0.9
+
+  # -- round 15 (24 Oct 2026; research/deep_research_round14.md, research/round15_plan.md): value, profitability and
+  #    sentiment where the research says they still pay. Check what the patterns resolve to with
+  #    `p2a mechanisms --list --region ...` before simulating: these descriptions were not seen live in IND / ASI / JPN --
+  cap:                        # market capitalization (price-volume data, every region)
+    type: MATRIX
+    ids: ["cap"]
+  net_income:                 # reported net income, carried between reports
+    type: MATRIX
+    ids: ["net_income_total_5"]          # CHN, fundamental23 (round 14)
+    patterns: ["\\bnet income\\b", "\\bnet profit\\b", "\\bnet earnings\\b",
+               "profit attributable to (the )?(shareholders|owners|equity holders|parent)"]
+    exclude: ["estimat", "forecast", "consensus", "analyst", "predict", "guidance", "expect", "growth", "change",
+              "surprise", "margin", "per share", "ratio", "yield", "std", "deviation", "\\bhigh\\b", "\\blow\\b",
+              "number of", "count", "flag", "rank", "quantile", "percentile", "score", "revision", "fast_d1",
+              "minority", "non-?controlling", "prior", "previous", "\\blag", "\\bq[1-4]\\b", "adjust", "cash flow",
+              "median", "\\bmean\\b", "average", "industry", "sector"]
+    prefer: ["total", "ttm", "trailing", "annual", "attributable"]
+    search: ["net income", "net_income", "net profit"]
+    min_coverage: 0.5
+  book_equity:                # book value of shareholders' equity
+    type: MATRIX
+    ids: ["equity"]                      # USA (the engine's value reference factor reads it)
+    patterns: ["^(total )?(common |ordinary |shareholders'? |stockholders'? )?equity( - total)?$",
+               "(total|common|ordinary|shareholders'?|stockholders'?) equity", "common/ordinary equity",
+               "^book value( of equity)?$", "equity attributable to (the )?(shareholders|owners|equity holders|parent)"]
+    exclude: ["per share", "estimat", "forecast", "consensus", "analyst", "predict", "return on", "to equity",
+              "equity to", "ratio", "growth", "change", "minority", "non-?controlling", "liabilit", "fast_d1", "rank",
+              "quantile", "percentile", "score", "market value", "market cap", "issuance", "repurchas", "buyback",
+              "dividend", "cost of equity", "beta", "risk", "cash", "flow", "turnover", "net income", "profit",
+              "prior", "previous"]
+    prefer: ["total", "common", "shareholders", "parent"]
+    search: ["total equity", "total_equity", "shareholders equity", "common equity", "book value"]
+    min_coverage: 0.5
 
 mechanisms:
   - id: residual_reversal
@@ -707,6 +744,69 @@ mechanisms:
     decay: 4
     sources: ["An, Ang, Bali and Cakici (2014) JF"]
     idea: "implied volatility high relative to the stock's own year predicts lower returns (Sharpe 0.66)."
+
+  # -- round 15 (24 Oct 2026): the "next experiments" of research/deep_research_round14.md. Value, profitability and
+  #    sentiment, each only where the research found it (not yet simulated on this account) --
+  - id: ep_value
+    group: value_ep
+    regions: [CHN, IND, ASI, JPN]
+    roles: [net_income, cap]
+    template: "rank(ts_backfill({net_income}, 252) / {cap})"
+    neutralization: INDUSTRY
+    decay: 6
+    sources: ["Basu (1977) JF", "Fama and French (2012) JFE", "Liu, Stambaugh and Yuan (2019) JFE",
+              "Jensen, Kelly and Pedersen (2023) JF"]
+    idea: "stocks that are cheap relative to their earnings earn a value premium. Value is strongest in emerging
+      markets and in Japan, and in China earnings-to-price, not book-to-market, is the value measure that prices
+      stocks."
+  - id: ep_value_ex_shells
+    group: value_ep_ex_shell
+    regions: [CHN]
+    roles: [net_income, cap]
+    template: "if_else(rank({cap}) > 0.3, rank(ts_backfill({net_income}, 252) / {cap}), nan)"
+    neutralization: INDUSTRY
+    decay: 8
+    sources: ["Liu, Stambaugh and Yuan (2019) JFE"]
+    idea: "in China the smallest 30% of listed firms are priced as shells for reverse mergers (IPO approval is scarce),
+      not on their earnings. Leaving them out, earnings-to-price is the value factor of the Chinese three-factor
+      model. It trades slowly, which matters where the simulation charges trading costs."
+  - id: abnormal_turnover
+    group: abnormal_turnover
+    regions: [CHN]
+    roles: [volume]
+    template: "-rank(ts_mean({volume}, 21) / ts_mean({volume}, 252))"
+    neutralization: INDUSTRY
+    decay: 8
+    sources: ["Liu, Stambaugh and Yuan (2019) JFE", "Baker and Stein (2004) JFM"]
+    idea: "in a market dominated by retail investors who cannot sell short, high turnover marks optimism that prices
+      have not yet corrected: stocks whose last month's turnover is low against their past year (pessimistic) beat
+      those whose turnover is high (optimistic), the sentiment factor of the Chinese four-factor model."
+  - id: profitability
+    group: profitability
+    regions: [CHN, IND, ASI, JPN]
+    roles: [net_income, book_equity]
+    template: "rank(if_else(ts_backfill({book_equity}, 252) > 0,
+      ts_backfill({net_income}, 252) / ts_backfill({book_equity}, 252), nan))"
+    neutralization: INDUSTRY
+    decay: 6
+    sources: ["Novy-Marx (2013) JFE", "Asness, Frazzini and Pedersen (2019) RAS", "Jensen, Kelly and Pedersen (2023) JF"]
+    idea: "profitable firms (return on equity) earn more than unprofitable ones at the same price, because investors
+      underrate how persistent profitability is. Quality is strongest in emerging markets. Firms with negative book
+      equity are left out, where the ratio has no meaning."
+  - id: country_value_quality
+    group: country_value_quality
+    regions: [ASI, IND, JPN]
+    roles: [book_equity, net_income, cap]
+    template: "group_neutralize(add(rank(ts_backfill({book_equity}, 252) / {cap}) - 0.5,
+      rank(if_else(ts_backfill({book_equity}, 252) > 0, ts_backfill({net_income}, 252) / ts_backfill({book_equity}, 252),
+      nan)) - 0.5, filter=true), densify(group_cartesian_product(country, industry)))"
+    neutralization: MARKET
+    decay: 6
+    sources: ["Fama and French (2012) JFE", "Asness, Moskowitz and Pedersen (2013) JF", "Novy-Marx (2013) JFE"]
+    idea: "book-to-market and profitability hedge each other (cheap firms are often the unprofitable ones), so their sum
+      earns more per unit of risk than either. Value has been strongest in Japan, where momentum fails. Comparing firms
+      only with peers of the same country and industry gives every country its own balanced book, which BRAIN's test
+      of the Japanese stocks in ASI needs, and differs from the standard neutralizations production alphas use."
 
 # Enhancers: research-backed transformations that raise the Sharpe of an existing signal {s} without changing
 # its idea. Applied only to signals that already work (p2a enhance); each still needs its own simulation.

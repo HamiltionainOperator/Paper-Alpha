@@ -42,11 +42,15 @@ class Mechanism:
     idea: str = ""
     counterpart: str | None = None
     enhancer: bool = False
+    regions: list[str] = field(default_factory=list)  # where the research says it works; empty = every region
     missing_ops: set = field(default_factory=set)
 
     @property
     def available(self) -> bool:
         return not self.missing_ops
+
+    def fits(self, region: str) -> bool:
+        return not self.regions or str(region).upper() in self.regions
 
 
 _MLIB = None
@@ -74,7 +78,8 @@ class MechanismLibrary:
         return Mechanism(id=d["id"], template=" ".join(str(d["template"]).split()), roles=list(d.get("roles") or []),
                          group=d.get("group", ""), neutralization=d.get("neutralization"), decay=d.get("decay"),
                          sources=list(d.get("sources") or []), idea=" ".join(str(d.get("idea") or "").split()),
-                         counterpart=d.get("counterpart"), enhancer=bool(d.get("enhancer")))
+                         counterpart=d.get("counterpart"), enhancer=bool(d.get("enhancer")),
+                         regions=[str(r).upper() for r in d.get("regions") or []])
 
     @classmethod
     def load(cls, cfg, catalog=None) -> "MechanismLibrary":
@@ -111,11 +116,18 @@ class RoleResolver:
                 self.ctx.store.kv_set(key, len(rows))
 
     def candidates(self, role: str) -> list[dict]:
+        """Exact ids first (those the scope has), then, when the role also has patterns, the fields its patterns find:
+        a field verified in one region leads there, and the patterns fill the role in regions that name it otherwise."""
         spec = self.roles.get(role) or {}
         store, scope = self.ctx.store, self.ctx.scope
-        if spec.get("ids"):
-            rows = [store.field(i, scope) or self._lookup(i) for i in spec["ids"]]
-            return [r for r in rows if r]
+        exact = [r for r in (store.field(i, scope) or self._lookup(i) for i in spec.get("ids") or []) if r]
+        if spec.get("ids") and not (spec.get("patterns") or spec.get("id_patterns")):
+            return exact
+        found = {r["id"] for r in exact}
+        return exact + [f for f in self._matches(spec) if f["id"] not in found]
+
+    def _matches(self, spec: dict) -> list[dict]:
+        store, scope = self.ctx.store, self.ctx.scope
         self._search(spec)
         pats, idp, exc, pref = _rx(spec.get("patterns")), _rx(spec.get("id_patterns")), _rx(spec.get("exclude")), \
             _rx(spec.get("prefer"))
@@ -211,6 +223,8 @@ class MechanismBuilder:
         out = []
         for m in self.lib.mechanisms:
             if only and m.id not in only:
+                continue
+            if not only and not m.fits(self.ctx.scope["region"]):  # naming a mechanism with --only overrides its regions
                 continue
             if not m.available:
                 console.print(f"  [dim]{m.id}: operators missing on this account ({', '.join(sorted(m.missing_ops))})[/dim]")
