@@ -1,0 +1,72 @@
+[
+ {
+  "expression": "(rank(atm_call_option_implied_volatility - atm_put_option_implied_volatility) - 0.5) * rank(market_capitalization_value_2)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Cremers and Weinbaum (2010): stocks whose at-the-money calls are priced richer than puts outperform. The size weight concentrates the bet where option prices are most informative and trading costs are low. Tested in the TOP1000 universe (liquid names only).",
+  "rationale_data": "At-the-money call and put implied volatilities (option chart model dataset, model category) and market_capitalization_value_2 (scorings data, model category). (atm_call_option_implied_volatility: Implied volatility of at-the-money (ATM) call option, measure of expected volatility; atm_put_option_implied_volatility: Implied volatility for the at-the-money put option.)",
+  "rationale_operators": "The call-minus-put spread is ranked and centred, then scaled by the rank of market value so larger companies carry more weight; industry neutralization removes industry volatility levels.",
+  "source_alpha": 184
+ },
+ {
+  "expression": "rank(img30d_return_bisection_prob1_zackbatch) + rank(img30d_return_quintile)",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Two chart-image CNN models (Jiang, Kelly and Xiu 2023) built on different networks; averaging their forecasts reduces model noise. Tested in the TOP1000 universe (liquid names only).",
+  "rationale_data": "img30d_return_bisection_prob1_zackbatch and img30d_return_quintile (deep learning chart-based alpha, model category).",
+  "rationale_operators": "rank() normalises each model's output before combining.",
+  "source_alpha": 212
+ },
+ {
+  "expression": "rank(ts_regression(atm_call_option_implied_volatility, atm_put_option_implied_volatility, 63, rettype=0))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "The part of call implied volatility that put implied volatility does not explain over the last quarter: one-sided demand for calls signals informed bullish trading (Pan and Poteshman 2006; Cremers and Weinbaum 2010). Tested in the TOP1000 universe (liquid names only).",
+  "rationale_data": "at-the-money call and put implied volatilities (option chart model, model category). (atm_call_option_implied_volatility: Implied volatility of at-the-money (ATM) call option, measure of expected volatility; atm_put_option_implied_volatility: Implied volatility for the at-the-money put option.)",
+  "rationale_operators": "ts_regression(rettype=0): residual of call IV on put IV over 63 days; rank() normalises.",
+  "source_alpha": 218
+ },
+ {
+  "expression": "rank(option_quantile5_20d_pred - event_embedding_quantile2_60d_pred)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "The gap between two paired measures (call vs put, short vs long horizon) is the signal (Bali and Hovakimian (2009) MS; Cremers and Weinbaum (2010) JFQA; Da and Warachka (2011) JFE). Applied to option_quantile5_20d_pred, whose plain ranking already showed signal (Sharpe 1.91), paired with event_embedding_quantile2_60d_pred (60-day forward return prediction for the 2nd quantile using event embedding features.). Tested in the TOP1000 universe (liquid names only).",
+  "rationale_data": "option_quantile5_20d_pred (multi_source_model, model category): 20-day forward return prediction for the 5th quantile using option-derived features.; event_embedding_quantile2_60d_pred: 60-day forward return prediction for the 2nd quantile using event embedding features.",
+  "rationale_operators": "the spread shape (spread): rank({x} - {y}), with windows for a fast-changing field; rank() keeps the result a uniform cross-sectional score.",
+  "source_alpha": 260
+ },
+ {
+  "expression": "rank(ts_zscore(avg_first_biasfree_price_target_estimate, 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Price-target revisions carry information beyond recommendations (Brav and Lehavy 2003): the bias-adjusted target relative to its own last quarter. Tested in the TOP1000 universe (liquid names only).",
+  "rationale_data": "avg_first_biasfree_price_target_estimate (bias adjusted analyst forecasts, analyst category).",
+  "rationale_operators": "ts_zscore(63): target versus its recent history; rank() normalises.",
+  "source_alpha": 226
+ },
+ {
+  "expression": "rank(ts_zscore(anl82_netq_deltaprofitability_profitability2, 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Changes in expected profitability (Hou, Xue and Zhang 2015): the predicted quarterly profitability change relative to its own last quarter. Tested in the TOP1000 universe (liquid names only).",
+  "rationale_data": "anl82_netq_deltaprofitability_profitability2 (analyst estimate prediction data, analyst category).",
+  "rationale_operators": "ts_zscore(63): today versus the last quarter; rank() normalises.",
+  "source_alpha": 228
+ },
+ {
+  "expression": "rank(long_term_120d_regression_prediction)",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Long-horizon return forecasts from machine-learning combinations of firm characteristics (Gu, Kelly and Xiu 2020) capture slower-moving premia than short-term forecasts. Tested in the TOP1000 universe (liquid names only).",
+  "rationale_data": "long_term_120d_regression_prediction (multi factor market return predictions, model category): a regression forecast of the 120-day return.",
+  "rationale_operators": "rank() keeps the ordering of the forecast; subindustry neutralization removes industry bets.",
+  "source_alpha": 171
+ }
+]

@@ -1,0 +1,14 @@
+[
+  {"expression": "(rank(option_quantile5_20d_pred) - 0.5) * rank(market_capitalization_value_2)", "neutralization": "INDUSTRY", "decay": 4,
+   "idea": "Option-implied information predicts 20-day returns (Cremers and Weinbaum 2010; An, Ang, Bali and Cakici 2014). Weighting the forecast by company size keeps the bet in liquid stocks, where option markets are deepest and the signal is cheapest to trade.",
+   "rationale_data": "option_quantile5_20d_pred (multi-source market return prediction, model category): predicted probability of a top-quantile 20-day return from option features; market_capitalization_value_2 (scorings data, model category) for the size weight.",
+   "rationale_operators": "rank() - 0.5 centres the forecast so its sign sets long or short; multiplying by rank() of market value scales positions up in larger companies without adding a size bet; industry neutralization removes industry effects."},
+  {"expression": "(rank(atm_call_option_implied_volatility - atm_put_option_implied_volatility) - 0.5) * rank(market_capitalization_value_2)", "neutralization": "INDUSTRY", "decay": 4,
+   "idea": "Cremers and Weinbaum (2010): stocks whose at-the-money calls are priced richer than puts outperform. The size weight concentrates the bet where option prices are most informative and trading costs are low.",
+   "rationale_data": "At-the-money call and put implied volatilities (option chart model dataset, model category) and market_capitalization_value_2 (scorings data, model category).",
+   "rationale_operators": "The call-minus-put spread is ranked and centred, then scaled by the rank of market value so larger companies carry more weight; industry neutralization removes industry volatility levels."},
+  {"expression": "(rank(img30d_return_bisection_prob1_zackbatch) - 0.5) * rank(market_capitalization_value_2)", "neutralization": "SUBINDUSTRY", "decay": 4,
+   "idea": "Jiang, Kelly and Xiu (2023): CNN forecasts from price-chart images predict returns; weighting by company size keeps the signal in liquid names, where it must hold to be tradable.",
+   "rationale_data": "img30d_return_bisection_prob1_zackbatch (deep learning chart-based alpha, model category) and market_capitalization_value_2 (scorings data, model category).",
+   "rationale_operators": "rank() - 0.5 centres the CNN probability; multiplying by rank() of market value weights larger companies more; subindustry neutralization removes industry trends."}
+]

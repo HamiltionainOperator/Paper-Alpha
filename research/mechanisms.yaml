@@ -1,0 +1,732 @@
+# Return mechanisms with high documented Sharpe, written in BRAIN operators (p2a/engine/mechanisms.py).
+# Research, sources and the reasoning behind each template: research/new_ideas_research.md (round 6) and
+# research/deep_research_round7.md (round 7).
+#
+# This is knowledge, not engine code. Fields are never named here: each template has ROLES, and a role is
+# filled from the LIVE catalog by matching field ids / descriptions (regexes, case-insensitive), preferring high
+# coverage and few existing alphas (uncrowded). Templates whose operators the account lacks are disabled.
+#
+# Why these mechanisms (fundamental law, IR ~ TC x IC x sqrt(breadth)): Sharpe 3-4 at delay 1 needs information
+# that arrives daily and decays within days (breadth), measured against residual rather than raw returns (IC),
+# and several such signals integrated into one score.
+
+roles:
+  residual_return:            # risk-model specific (residual) daily return
+    type: MATRIX
+    patterns: ["specific return"]
+    search: ["specific_return"]
+    prefer: ["top3000", "equal weight", "barra"]
+    exclude: ["top200", "top500", "top1000", "sp500", "notliquim", "crowding_top"]
+    min_coverage: 0.9
+  returns:
+    type: MATRIX
+    ids: ["returns"]
+  open:
+    type: MATRIX
+    ids: ["open"]
+  close:
+    type: MATRIX
+    ids: ["close"]
+  volume:
+    type: MATRIX
+    ids: ["volume"]
+  adv:
+    type: MATRIX
+    ids: ["adv20"]
+  overnight_return_fast:      # return up to the Fast D1 cutoff (minutes after today's open)
+    type: MATRIX
+    id_patterns: ["vwap.*returns.*fast_d1"]
+    search: ["returns_fast_d1"]
+    min_coverage: 0.9
+  news_count:                 # how many news stories a stock had (end-of-day data)
+    patterns: ["^story count", "number of (news )?(stories|articles)", "count of (news|stories)"]
+    exclude: ["fast_d1", "prob", "rank", "label", "bin", "quantile", "img", "chunk", "sentence", "word"]
+    prefer: ["story count"]
+    min_coverage: 0.8
+  news_count_fast:            # the same, known at today's open
+    patterns: ["^story count", "number of (news )?(stories|articles)", "count of (news|stories)", "mention count"]
+    id_patterns: ["fast_d1"]
+    exclude: ["prob", "rank", "label", "bin", "quantile", "img", "chunk", "sentence", "word", "insider"]
+    prefer: ["story count"]
+    min_coverage: 0.8
+  tone_fast:                  # overnight news tone known at today's open
+    patterns: ["sentiment", "tone", "probability .*positive"]
+    id_patterns: ["fast_d1"]
+    exclude: ["confidence", "count of", "number of", "neutral", "timestamp", "publication time", "\\bdate\\b",
+              "\\bcode\\b", "\\blabel\\b", "\\btitle\\b", "headline text", "chunk", "relevance", "novelty", "_neg", "negative"]
+    prefer: ["headline", "news", "story"]
+    min_coverage: 0.7
+  network_momentum:           # momentum of linked / connected firms
+    patterns: ["network momentum", "linked firms", "nemo"]
+    exclude: ["market cap", "fast_d1"]
+    search: ["network momentum"]
+    prefer: ["composite", "score"]
+    min_coverage: 0.7
+  stat_group:                 # return-based statistical industry clusters for this universe
+    type: GROUP
+    patterns: ["statistical industry classification", "statistically derived industry cluster", "return-based robust industry cluster"]
+    search: ["sta1_", "sta2_"]
+    universe_in_id: true      # the id must name this scope's universe (e.g. top3000)
+    prefer: ["c50", "c20"]
+
+  # -- roles for the research-paper ideas of round 6 (17 Oct): little-used datasets matched by description --------
+  board_centrality:
+    patterns: ["eigenvector centrality", "betweenness centrality", "authority score in the resulting director network"]
+    prefer: ["eigenvector"]
+    min_coverage: 0.6
+  eps_rounding:
+    patterns: ["third decimal place", "quad_rank"]
+    prefer: ["rolling", "weighted average"]
+    min_coverage: 0.5
+  org_capital:
+    patterns: ["organizational capital intensity"]
+    min_coverage: 0.5
+  intangible_intensity:
+    patterns: ["intangible asset intensity"]
+    prefer: ["normalized"]
+    min_coverage: 0.5
+  innovation_relevance:
+    patterns: ["innovation relevance", "alignment between .* (innovation|patent)", "similarity between the recent .* patent"]
+    prefer: ["neutralized", "3-year historical", "3 year"]
+    min_coverage: 0.4
+  patent_composite:
+    patterns: ["patent-based innovation composite"]
+    min_coverage: 0.4
+  filing_words:
+    patterns: ["^number of words in the section"]
+    exclude: ["fast_d1", "transcript", "call", "presentation"]
+    min_coverage: 0.5
+  filing_negative:
+    patterns: ["count of words and phrases in the section tagged with negative"]
+    exclude: ["fast_d1"]
+    min_coverage: 0.5
+  etf_passive_growth:
+    patterns: ["percent growth in .*passive etf", "growth in the total usd value of the stock held by us-listed passive etfs"]
+    prefer: ["z-score", "2 wee", "2-wee"]
+    exclude: ["number of"]
+    min_coverage: 0.8
+  etf_active_growth:
+    patterns: ["percent growth in .*active etf", "percent growth in total market value .*active etf"]
+    prefer: ["z-score", "2 wee", "2-wee"]
+    exclude: ["number of"]
+    min_coverage: 0.8
+  salience:
+    patterns: ["salience theory"]
+    min_coverage: 0.6
+  return_ordering:
+    patterns: ["chronological return ordering"]
+    min_coverage: 0.6
+  return_extremeness:
+    patterns: ["degree of return extremeness"]
+    min_coverage: 0.6
+  path_shape:
+    patterns: ["visual shape score"]
+    min_coverage: 0.6
+  short_volume:
+    type: MATRIX
+    patterns: ["number of shares sold short during regular trading hours"]
+  total_volume_reg:
+    type: MATRIX
+    patterns: ["^total number of shares traded during regular trading hours"]
+  forum_buy:
+    patterns: ["combined buy sentiment score from all sources"]
+    min_coverage: 0.4
+  forum_sell:
+    patterns: ["combined sell sentiment score from all sources"]
+    min_coverage: 0.4
+  equity_bond_gap:
+    patterns: ["difference of market equity return and estimated equity return"]
+    prefer: ["zscore"]
+    min_coverage: 0.3
+  earnings_vrp:
+    patterns: ["implied earnings volatility and realized volatility"]
+    min_coverage: 0.25
+  dividend_forecast:
+    patterns: ["^dividend forecast$", "projected cash dividend per share"]
+    exclude: ["historical", "frequency"]
+    min_coverage: 0.8
+  insider_direction:
+    patterns: ["direction or bias of enhanced insider activity"]
+    min_coverage: 0.5
+
+  etf_breadth_change:
+    patterns: ["growth in the number of (us-listed )?(passive )?etfs holding", "growth in the number of distinct us-listed etfs holding"]
+    prefer: ["z-score", "z-scored", "2-week", "2 week"]
+    exclude: ["active"]
+    min_coverage: 0.8
+  fund_holders:
+    patterns: ["number of distinct investment accounts or funds holding"]
+    min_coverage: 0.8
+  filing_notes:
+    patterns: ["number of individual notes in the notes to consolidated financial statements"]
+    exclude: ["fast_d1"]
+    min_coverage: 0.5
+  filing_items:
+    patterns: ["number of items across all parts of the filing"]
+    exclude: ["fast_d1"]
+    min_coverage: 0.5
+
+  rev_up:
+    patterns: ["^earnings per share 4 wk up$"]
+    min_coverage: 0.8
+  rev_down:
+    patterns: ["^earnings per share 4 wk down$"]
+    min_coverage: 0.8
+  rev_numest:
+    patterns: ["^earnings per share # ests$"]
+    min_coverage: 0.8
+  rev_change:
+    patterns: ["^earnings per share 4 wk chg$"]
+    min_coverage: 0.8
+  answer_tone:
+    type: MATRIX
+    patterns: ["signed polarity score for profitability"]
+    id_patterns: ["answer"]
+    exclude: ["fast_d1"]
+    min_coverage: 0.7
+  presentation_tone:
+    type: MATRIX
+    patterns: ["signed polarity score .*profitability"]
+    id_patterns: ["presentation"]
+    exclude: ["fast_d1"]
+    min_coverage: 0.7
+
+  # -- round 7 (research/deep_research_round7.md): channels of private information with little production use --
+  otm_put_iv:                 # implied volatility of out-of-the-money puts (the smirk's put leg)
+    type: MATRIX
+    patterns: ["^implied volatility of out-of-the-money put options"]
+    prefer: ["bid"]
+    min_coverage: 0.9
+  atm_call_iv:
+    type: MATRIX
+    patterns: ["^implied volatility of at-the-money call options$"]
+    min_coverage: 0.9
+  atm_put_iv:
+    type: MATRIX
+    patterns: ["^implied volatility of at-the-money put options$"]
+    min_coverage: 0.9
+  lending_utilization:        # shares on loan / lendable shares
+    patterns: ["shares on loan to shares available"]
+    exclude: ["_d1"]
+    min_coverage: 0.9
+  leverage_answer_tone:
+    type: MATRIX
+    patterns: ["signed polarity score for leverage"]
+    id_patterns: ["answer"]
+    exclude: ["fast_d1"]
+    min_coverage: 0.7
+  leverage_question_tone:
+    type: MATRIX
+    patterns: ["signed polarity scores .*leverage"]
+    id_patterns: ["question"]
+    exclude: ["fast_d1"]
+    min_coverage: 0.7
+
+  # -- round 8: further channels with little production use (research/deep_research_round7.md, round 8) --
+  leverage_presentation_tone:
+    type: MATRIX
+    patterns: ["signed polarity score .*for leverage across all chunks in the presentation"]
+    exclude: ["fast_d1"]
+    min_coverage: 0.7
+  lendable_supply:
+    patterns: ["available to lend for this group"]
+    exclude: ["_main", "_d1", "market value", "usd"]
+    min_coverage: 0.9
+  customer_otm_option_flow:
+    type: MATRIX
+    patterns: ["bullish and bearish trade volumes for customers, for out-of-the-money"]
+    min_coverage: 0.7
+
+  # -- round 9 (19 Oct 2026) --
+  short_squeeze_score:
+    patterns: ["short squeezability"]
+    min_coverage: 0.9
+  iv_rank_1y:
+    type: MATRIX
+    patterns: ["^implied volatility rank based on 30-day iv"]
+    prefer: ["long-term"]
+    min_coverage: 0.9
+
+mechanisms:
+  - id: residual_reversal
+    group: short_term_reversal
+    roles: [residual_return]
+    template: "-rank(ts_sum({residual_return}, 5) / ts_std_dev({residual_return}, 63))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Blitz, Huij, Lansdorp and Verbeek (2013) JFM", "Da, Liu and Schaumburg (2014) MS", "Lehmann (1990) QJE"]
+    idea: "stocks whose risk-model residual return over the past week was unusually large relative to their own residual
+      volatility reverse: the move is liquidity provision, not news. Residual reversal earns about twice the risk-adjusted
+      return of raw reversal because it carries no factor exposure."
+  - id: residual_reversal_slow
+    group: short_term_reversal
+    roles: [residual_return]
+    template: "-rank(ts_decay_linear(ts_sum({residual_return}, 5) / ts_std_dev({residual_return}, 63), 5))"
+    neutralization: SUBINDUSTRY
+    decay: 2
+    sources: ["Blitz, Huij, Lansdorp and Verbeek (2013) JFM", "Novy-Marx and Velikov (2016) RFS"]
+    idea: "the same residual reversal traded more slowly (linearly decayed signal) so that fewer, larger trades keep most of
+      the edge after costs and lift fitness."
+  - id: residual_momentum
+    group: momentum
+    roles: [residual_return]
+    template: "rank((ts_sum({residual_return}, 252) - ts_sum({residual_return}, 21)) / ts_std_dev({residual_return}, 252))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Blitz, Huij and Martens (2011) JEF", "Gutierrez and Pirinsky (2007) JFM"]
+    idea: "momentum in firm-specific (residual) returns, skipping the last month and scaled by residual volatility, roughly
+      doubles the Sharpe of raw momentum and avoids its factor crashes."
+  - id: news_conditioned_reversal
+    group: short_term_reversal
+    roles: [residual_return, news_count]
+    template: "if_else(ts_sum({news_count}, 5) > 0, rank(ts_sum({residual_return}, 5)) - 0.5, 0.5 - rank(ts_sum({residual_return}, 5)))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Chan (2003) JFE", "Tetlock (2011) RFS"]
+    idea: "price moves that come with news drift (investors underreact to information) while moves without news reverse
+      (they were noise or liquidity shocks): follow residual moves of stocks that had news, fade the others."
+  - id: overnight_tone
+    group: news_overnight
+    roles: [tone_fast]
+    template: "rank({tone_fast})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Tetlock, Saar-Tsechansky and Macskassy (2008) JF", "Ke, Kelly and Xiu (2019) NBER w26186", "BRAIN Learn: Fast D1"]
+    idea: "tone of news published overnight, known at today's open (Fast D1): prices underreact to the information in news
+      words for days, and the reaction starts a day earlier than with end-of-day data."
+  - id: overnight_tone_change
+    group: news_overnight
+    roles: [tone_fast]
+    counterpart: d1           # the same field without the _fast_d1 suffix (BRAIN: the delta lowers production correlation)
+    template: "rank({tone_fast} - {tone_fast_d1})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["BRAIN Learn: Fast D1 (delta approach)", "Tetlock, Saar-Tsechansky and Macskassy (2008) JF"]
+    idea: "the overnight change in tone: what the newest information adds to yesterday's view, the part other alphas built
+      on end-of-day data cannot see yet."
+  - id: overnight_gap_reversal
+    group: overnight
+    roles: [overnight_return_fast]
+    template: "-rank({overnight_return_fast})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Lou, Polk and Skouras (2019) JFE", "Aboody, Even-Tov, Lehavy and Trueman (2018) JFQA", "Berkman, Koch, Tuttle and Zhang (2012) JFQA"]
+    idea: "opening moves driven by overnight retail demand (attention, sentiment) partly reverse as institutions trade during
+      the day: fade the return up to the Fast D1 cutoff."
+  - id: overnight_gap_drift
+    group: overnight
+    roles: [overnight_return_fast, news_count_fast]
+    template: "if_else({news_count_fast} > 0, rank({overnight_return_fast}) - 0.5, 0.5 - rank({overnight_return_fast}))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Chan (2003) JFE", "Lou, Polk and Skouras (2019) JFE"]
+    idea: "the overnight gap of a stock with overnight news is information and drifts; a gap without news is demand pressure
+      and reverses."
+  - id: connected_momentum
+    group: momentum
+    roles: [network_momentum]
+    template: "rank({network_momentum})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Ali and Hirshleifer (2020) JFE", "Cohen and Frazzini (2008) JF", "Menzly and Ozbas (2010) JF"]
+    idea: "investors and analysts are slow to carry news across economically linked firms, so the past returns of a firm's
+      connected peers predict its own (connected-firm momentum, monthly alpha 1.68%, t = 9.67)."
+
+  # -- round 6 (17 Oct): new ideas from research papers, on data few BRAIN alphas use -------------------------------
+  - id: board_centrality
+    group: board_network
+    roles: [board_centrality]
+    template: "rank({board_centrality})"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Larcker, So and Wang (2013) JAE"]
+    idea: "firms whose directors sit at the centre of the board network get better information and resources; the market
+      is slow to price it: the most central minus the least central firms earn 4.68% a year, with higher future ROA
+      growth that analysts miss."
+  - id: eps_rounding
+    group: earnings_management
+    roles: [eps_rounding]
+    template: "rank({eps_rounding})"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Malenko, Grundfest and Shen (2023) JFQA ('Quadrophobia')"]
+    idea: "firms that avoid a 4 in the tenth-of-a-cent digit of EPS round earnings up; this quadrophobia predicts
+      restatements, SEC enforcement and class actions, so persistent rounders are overvalued."
+  - id: organization_capital
+    group: organization_capital
+    roles: [org_capital]
+    template: "rank({org_capital})"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Eisfeldt and Papanikolaou (2013) JF"]
+    idea: "firms rich in organization capital (key talent embodied in the firm) relative to industry peers earn about 4.6%
+      a year more: shareholders bear the risk that the talent leaves."
+  - id: intangible_intensity
+    group: intangible_capital
+    roles: [intangible_intensity]
+    template: "rank({intangible_intensity})"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Peters and Taylor (2017) JFE", "Eisfeldt, Kim and Papanikolaou (2022) RFS"]
+    idea: "book value misses intangible capital; firms with high intangible intensity are systematically mispriced by
+      book-based measures and earn an intangible-value premium."
+  - id: innovation_focus
+    group: innovation
+    roles: [innovation_relevance]
+    template: "rank({innovation_relevance})"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Cohen, Diether and Malloy (2013) RFS", "Hirshleifer, Hsu and Li (2013) JFE"]
+    idea: "markets misvalue innovation: patenting that builds on a firm's established technological footprint (a sign of a
+      repeatable innovation ability) predicts returns the market does not price."
+  - id: patent_quality
+    group: innovation_composite
+    roles: [patent_composite]
+    template: "rank({patent_composite})"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Hirshleifer, Hsu and Li (2013) JFE", "Kogan, Papanikolaou, Seru and Stoffman (2017) QJE"]
+    idea: "firms whose patents are more valuable and efficient relative to their inputs earn higher future returns:
+      investors underreact to hard-to-process innovation information."
+  - id: lazy_prices
+    group: filing_text_change
+    roles: [filing_words]
+    template: "-rank(abs(ts_delta(ts_backfill({filing_words}, 252), 252)) / ts_mean(ts_backfill({filing_words}, 252), 252))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Cohen, Malloy and Nguyen (2020) JF ('Lazy Prices')", "Li (2008) JAE"]
+    idea: "firms that change their regulatory filings substantially from one year to the next underperform (up to 188 bp a
+      month): the changes foreshadow bad news, but inattentive investors only react when it is revealed. Here: the size of
+      the year-over-year change in the filing section's length."
+  - id: filing_negativity
+    group: filing_tone
+    roles: [filing_negative, filing_words]
+    template: "-rank(ts_backfill({filing_negative}, 252) / ts_backfill({filing_words}, 252))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Loughran and McDonald (2011) JF", "Tetlock, Saar-Tsechansky and Macskassy (2008) JF"]
+    idea: "the share of negative words in a firm's regulatory filing (finance-specific dictionary) predicts lower returns:
+      managers' own words carry bad news slowly absorbed by prices."
+  - id: passive_flow_reversal
+    group: etf_flows
+    roles: [etf_passive_growth]
+    template: "-rank({etf_passive_growth})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Ben-David, Franzoni and Moussawi (2018) JF"]
+    idea: "growth in passive ETF holdings is non-fundamental demand that ETF arbitrage pushes into the stock; its price
+      impact decays within days, so stocks with recent passive inflows underperform."
+  - id: active_vs_passive_flow
+    group: etf_flow_mix
+    roles: [etf_active_growth, etf_passive_growth]
+    template: "rank({etf_active_growth} - {etf_passive_growth})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Ben-David, Franzoni and Moussawi (2018) JF", "Easley, Michayluk, O'Hara and Putnins (2021) RF"]
+    idea: "active ETF managers trade on information while passive flows are noise: buy stocks where active ETF ownership
+      grows faster than passive ownership."
+  - id: salience
+    group: salience
+    roles: [salience]
+    template: "-rank({salience})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Cosemans and Frehen (2021) JFE", "Bordalo, Gennaioli and Shleifer (2013) AER"]
+    idea: "investors overweight salient past returns: stocks with salient upsides are bid up and earn low returns, stocks
+      with salient downsides earn high returns."
+  - id: return_ordering
+    group: return_ordering
+    roles: [return_ordering]
+    template: "-rank({return_ordering})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Mohrschladt (2021) JBF", "Cakici and Zaremba (2021) SSRN"]
+    idea: "the order of past returns matters: stocks whose recent returns are high relative to their distant returns
+      (high chronological return ordering) earn lower subsequent returns, 0.91% a month across 49 countries."
+  - id: lottery_extremes
+    group: lottery
+    roles: [return_extremeness]
+    template: "-rank({return_extremeness})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Bali, Cakici and Whitelaw (2011) JFE"]
+    idea: "investors overpay for lottery-like stocks with extreme recent daily returns, which then underperform."
+  - id: frog_in_pan
+    group: information_continuity
+    roles: [path_shape]
+    template: "rank({path_shape})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Da, Gurun and Warachka (2014) RFS"]
+    idea: "information that arrives continuously in small amounts (a smooth price path) attracts little attention and is
+      underreacted to more than dramatic jumps: the shape of the past price path predicts continuation."
+  - id: abnormal_short_volume
+    group: short_selling_flow
+    roles: [short_volume, total_volume_reg]
+    template: "-rank(ts_mean({short_volume} / {total_volume_reg}, 5) - ts_mean({short_volume} / {total_volume_reg}, 63))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Diether, Lee and Werner (2009) RFS", "Boehmer, Jones and Zhang (2008) JF"]
+    idea: "short sellers trade on short-term overreaction: a rise in the share of volume sold short above its own norm
+      predicts negative returns over the next days."
+  - id: forum_opinion
+    group: retail_opinion
+    roles: [forum_buy, forum_sell]
+    template: "rank({forum_buy} - {forum_sell})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Chen, De, Hu and Hwang (2014) RFS", "Antweiler and Frank (2004) JF"]
+    idea: "opinions shared on investor platforms aggregate dispersed information: net buy-minus-sell opinion predicts
+      returns and earnings surprises beyond analysts and news."
+  - id: equity_bond_gap
+    group: capital_structure
+    roles: [equity_bond_gap]
+    template: "-rank({equity_bond_gap})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Kapadia and Pu (2012) JFE", "Merton (1974) JF"]
+    idea: "a firm's equity and bonds price the same assets; when the equity return runs ahead of what the bond return
+      implies, the gap is often anomalous and closes, so the equity leg reverses."
+  - id: earnings_vol_premium
+    group: earnings_uncertainty
+    roles: [earnings_vrp]
+    template: "-rank(ts_backfill({earnings_vrp}, 63))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Bali and Hovakimian (2009) MS", "Gao, Xing and Zhang (2018) JFQA"]
+    idea: "when options price an earnings-event volatility well above realized volatility, investors overpay for event
+      insurance and the stock's own risk is overstated; the premium predicts lower returns around the event."
+  - id: dividend_forecast_revision
+    group: dividend_news
+    roles: [dividend_forecast]
+    template: "rank(ts_zscore({dividend_forecast}, 252))"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Michaely, Thaler and Womack (1995) JF", "Brav, Graham, Harvey and Michaely (2005) JFE"]
+    idea: "dividends are sticky and managers raise them only when confident about future earnings; upward revisions in
+      forecast dividends signal improving fundamentals that prices absorb slowly."
+  - id: insider_direction
+    group: insider_trading
+    roles: [insider_direction]
+    template: "rank(ts_backfill({insider_direction}, 63))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Cohen, Malloy and Pomorski (2012) JF", "Lakonishok and Lee (2001) RFS"]
+    idea: "opportunistic (non-routine) insider trades carry private information - 82 bp a month - while routine trades
+      do not; the direction of significant insider activity predicts returns."
+
+  # -- round 6b: corrections after the first probes (17 Oct) -------------------------------------------------------
+  - id: etf_ownership_breadth
+    group: ownership_breadth
+    roles: [etf_breadth_change]
+    template: "rank({etf_breadth_change})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Chen, Hong and Stein (2002) JFE", "Ben-David, Franzoni and Moussawi (2018) JF"]
+    idea: "when the number of investors able and willing to hold a stock grows, short-sale constraints bind less and
+      prices rise; the count of ETFs holding a stock measures ownership breadth without the price move that dollar
+      holdings contain."
+  - id: fund_ownership_breadth
+    group: fund_breadth
+    roles: [fund_holders]
+    template: "rank(ts_delta({fund_holders}, 63) / ts_mean({fund_holders}, 252))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Chen, Hong and Stein (2002) JFE", "Chen, Jegadeesh and Wermers (2000) JFQA"]
+    idea: "a quarter-on-quarter rise in the number of funds holding a stock (breadth of ownership) predicts higher
+      returns; falling breadth means pessimists are being squeezed out by short-sale constraints."
+  - id: lazy_prices_notes
+    group: filing_notes_change
+    roles: [filing_notes]
+    template: "-rank(abs(ts_delta(ts_backfill({filing_notes}, 252), 252)) / ts_mean(ts_backfill({filing_notes}, 252), 252))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Cohen, Malloy and Nguyen (2020) JF ('Lazy Prices')"]
+    idea: "a change in how many notes the financial statements carry is a structural change in the filing - new
+      liabilities, segments, litigation - that predicts bad news investors notice only later."
+  - id: lazy_prices_items
+    group: filing_items_change
+    roles: [filing_items]
+    template: "-rank(abs(ts_delta(ts_backfill({filing_items}, 252), 252)) / ts_mean(ts_backfill({filing_items}, 252), 252))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Cohen, Malloy and Nguyen (2020) JF ('Lazy Prices')"]
+    idea: "the same inattention to filing changes, measured by the number of items across the filing's parts."
+  - id: equity_bond_continuation
+    group: capital_structure_lead
+    roles: [equity_bond_gap]
+    template: "rank(ts_mean({equity_bond_gap}, 5))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Gebhardt, Hvidkjaer and Swaminathan (2005) JFE", "Kapadia and Pu (2012) JFE"]
+    idea: "equity prices lead bond prices (stocks incorporate firm news first and bonds follow): when the equity return
+      runs ahead of the bond-implied return, the equity market is pricing news the credit market has not, and the move
+      continues. Averaged over a week to trade it slowly."
+
+  # -- round 6c: analyst revision breadth and conference-call Q&A tone (17 Oct) ----------------------------------------
+  - id: revision_breadth
+    group: revision_breadth
+    roles: [rev_up, rev_down, rev_numest]
+    template: "rank(({rev_up} - {rev_down}) / {rev_numest})"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Chan, Jegadeesh and Lakonishok (1996) JF", "Gleason and Lee (2003) TAR"]
+    idea: "the net share of analysts raising rather than cutting their EPS estimates over the past four weeks: revisions
+      cluster and prices absorb them slowly, more so when the revisions come from many analysts at once."
+  - id: consensus_revision
+    group: consensus_revision
+    roles: [rev_change]
+    template: "rank({rev_change})"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Chan, Jegadeesh and Lakonishok (1996) JF", "Stickel (1991) TAR"]
+    idea: "the four-week change in the consensus EPS estimate: investors underreact to the direction and size of
+      analysts' revisions."
+  - id: answer_tone
+    group: call_answer_tone
+    roles: [answer_tone]
+    template: "rank(ts_backfill({answer_tone}, 63))"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Price, Doran, Peterson and Bliss (2012) JBF", "Matsumoto, Pronk and Roelofsen (2011) TAR"]
+    idea: "management's tone about profitability when answering analysts' questions - the unscripted part of the earnings
+      call - predicts returns over the following 60 days beyond the earnings surprise itself."
+  - id: unscripted_tone_gap
+    group: call_tone_gap
+    roles: [answer_tone, presentation_tone]
+    template: "rank(ts_backfill({answer_tone} - {presentation_tone}, 63))"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Matsumoto, Pronk and Roelofsen (2011) TAR", "Davis, Ge, Matsumoto and Zhang (2015) RAST"]
+    idea: "managers script optimism into the presentation; when their spontaneous answers sound less positive than the
+      script, the gap reveals private pessimism (and the reverse)."
+
+  # -- round 7: measured on USA TOP3000 D1 (17 Oct 2026); see research/deep_research_round7.md --
+  - id: iv_smirk
+    group: option_smirk
+    roles: [otm_put_iv, atm_call_iv]
+    template: "-rank(ts_backfill({otm_put_iv}, 5) - ts_backfill({atm_call_iv}, 5))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Xing, Zhang and Zhao (2010) JFQA"]
+    idea: "informed traders with bad news buy out-of-the-money puts, steepening the volatility smirk; stocks with the
+      steepest smirk earn lower returns for months. Measured: Sharpe 1.80, 0.07 PnL correlation with the crowded ATM
+      call-put spread."
+  - id: iv_innovation
+    group: option_iv_innovation
+    roles: [atm_call_iv, atm_put_iv]
+    template: "rank(ts_delta(ts_backfill({atm_call_iv}, 5), 21) - ts_delta(ts_backfill({atm_put_iv}, 5), 21))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["An, Ang, Bali and Cakici (2014) JF"]
+    idea: "option traders act on information first: a month's rise in call implied volatility predicts higher returns
+      and a rise in put implied volatility lower ones. Measured: Sharpe 0.95, works in liquid stocks (sub-universe
+      ratio 0.69), uncorrelated with the other channels."
+  - id: lending_tightness
+    group: lending_tightness
+    roles: [lending_utilization]
+    template: "rank(ts_delta(ts_backfill({lending_utilization}, 21), 21))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Engelberg, Reed and Ringgenberg (2018) JF", "D'Avolio (2002) JFE"]
+    idea: "a month's rise in the utilization of lendable shares preceded higher returns (Sharpe 1.43; falling lendable
+      supply and a rising share of new loans agree). Crowded shorts face recall and squeeze risk and must cover into
+      strength. The sign is opposite to the demand-shock decline Cohen, Diether and Malloy (2007) report; it is not
+      reversal (0.27 at most with the reference factors)."
+  - id: leverage_answer_tone
+    group: call_leverage_tone
+    roles: [leverage_answer_tone]
+    template: "rank(ts_backfill({leverage_answer_tone}, 63))"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Price, Doran, Peterson and Bliss (2012) JBF", "Matsumoto, Pronk and Roelofsen (2011) TAR"]
+    idea: "management's tone about leverage when answering analysts predicts returns (Sharpe 1.10) and is nearly
+      independent of its tone about profitability (0.09-0.34)."
+  - id: leverage_question_tone
+    group: call_analyst_tone
+    roles: [leverage_question_tone]
+    template: "rank(ts_backfill({leverage_question_tone}, 63))"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Chen, Nagar and Schoenfeld (2018) RAST"]
+    idea: "sell-side analysts' tone in their questions about leverage reveals their private view (Sharpe 1.07)."
+
+  # -- round 8 (18 Oct 2026): independent of the submitted composite (#499, N1e5bMgX) --
+  - id: leverage_presentation_tone
+    group: call_presentation_tone
+    roles: [leverage_presentation_tone]
+    template: "rank(ts_backfill({leverage_presentation_tone}, 63))"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Davis, Piger and Sedor (2012) CAR", "Price, Doran, Peterson and Bliss (2012) JBF"]
+    idea: "managers' scripted presentation tone about leverage predicts returns (Sharpe 1.24, 2-year 1.40) and works in
+      liquid stocks (sub-universe ratio 0.64); 0.16 PnL correlation with the submitted composite."
+  - id: lendable_supply_decline
+    group: lending_supply
+    roles: [lendable_supply]
+    template: "-rank(ts_backfill({lendable_supply}, 21) / ts_delay(ts_backfill({lendable_supply}, 21), 21))"   # a ratio: unitless
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Engelberg, Reed and Ringgenberg (2018) JF", "Aggarwal, Saffi and Sturgess (2015) JF"]
+    idea: "a month's decline in lendable shares tightens the lending market and preceded higher returns (Sharpe 0.84);
+      only 0.15 correlated with rising utilization, so supply and demand are separate channels."
+  - id: customer_otm_option_flow
+    group: option_order_flow
+    roles: [customer_otm_option_flow]
+    template: "rank(ts_mean({customer_otm_option_flow}, 10))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Pan and Poteshman (2006) RFS", "Hu (2014) JFE"]
+    idea: "customers' signed out-of-the-money option volume carries information about future stock returns (Sharpe
+      0.58), negatively correlated with the smirk and the call-tone channels."
+
+  # -- round 9 (19 Oct 2026): liquid channels independent of the submitted composites --
+  - id: short_crowding
+    group: short_crowding
+    roles: [short_squeeze_score]
+    template: "-rank(ts_mean({short_squeeze_score}, 5))"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["Asquith, Pathak and Ritter (2005) JFE", "Hong, Li, Ni, Scheinkman and Yan (2016)"]
+    idea: "stocks crowded with short sellers are overpriced and underperform (Sharpe 0.80, last two years 0.81); works in
+      liquid stocks (sub-universe ratio 0.74) and is 0.2 or less correlated with every other channel."
+  - id: call_tone_surprise
+    group: call_tone_surprise
+    roles: [answer_tone]
+    template: "rank(ts_zscore(ts_backfill({answer_tone}, 63), 252))"
+    neutralization: INDUSTRY
+    decay: 4
+    sources: ["Davis, Ge, Matsumoto and Zhang (2015) RAST"]
+    idea: "managers' tone relative to the same firm's earlier calls (manager-specific optimism removed) predicts returns
+      (Sharpe 0.94) and works in liquid stocks (sub-universe ratio 0.79)."
+  - id: iv_rank_fear
+    group: option_iv_level
+    roles: [iv_rank_1y]
+    template: "-rank({iv_rank_1y})"
+    neutralization: SUBINDUSTRY
+    decay: 4
+    sources: ["An, Ang, Bali and Cakici (2014) JF"]
+    idea: "implied volatility high relative to the stock's own year predicts lower returns (Sharpe 0.66)."
+
+# Enhancers: research-backed transformations that raise the Sharpe of an existing signal {s} without changing
+# its idea. Applied only to signals that already work (p2a enhance); each still needs its own simulation.
+enhancers:
+  - id: vol_scaled
+    roles: [returns]
+    template: "rank({s}) / ts_std_dev({returns}, 21)"
+    sources: ["Barroso and Santa-Clara (2015) JFE", "Moreira and Muir (2017) JF"]
+    idea: "size each position by the inverse of the stock's recent volatility, so every stock contributes similar risk:
+      volatile names stop dominating the PnL noise."
+  - id: double_neutral
+    roles: [stat_group]
+    template: "group_neutralize(rank({s}), densify(group_cartesian_product(subindustry, {stat_group})))"
+    neutralization: MARKET
+    sources: ["BRAIN Learn: Double Neutralization", "Roll and Ross (1980) JF"]
+    idea: "compare a stock only with peers that share both its subindustry and its return-based statistical cluster, removing
+      common moves the industry classification misses."
+  - id: turnover_target
+    roles: []
+    template: "ts_target_tvr_decay(rank({s}), lambda_min=0, lambda_max=1, target_tvr=0.25)"
+    sources: ["BRAIN operator docs: ts_target_tvr_decay", "Novy-Marx and Velikov (2016) RFS"]
+    idea: "decay the signal just enough to reach a moderate turnover: fast signals keep their edge while fitness (Sharpe x
+      sqrt(returns / turnover)) clears the bar."

@@ -1,0 +1,65 @@
+[
+ {
+  "shape": "history_relative",
+  "expression": "rank(ts_zscore(mean_estimate_targetprice_annual12_tribes, 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Price-target revisions carry information beyond recommendations (Brav and Lehavy 2003): the consensus target relative to its own last quarter. Tests whether the bias-free target result generalises to another consensus source.",
+  "rationale_data": "mean_estimate_targetprice_annual12_tribes (standardized analyst consensus forecasts, analyst category).",
+  "rationale_operators": "ts_zscore(63): the target versus its last quarter; rank() normalises across stocks."
+ },
+ {
+  "shape": "level",
+  "expression": "rank(anl10_epsinnovation_score_fq2)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Gleason and Lee (2003): innovative revisions, those that move away from the consensus, carry more information and are followed by larger price drift than herding revisions.",
+  "rationale_data": "anl10_epsinnovation_score_fq2 (performance-weighted analyst estimates, analyst category): innovative increases minus decreases for next-quarter EPS.",
+  "rationale_operators": "rank() normalises the net innovation score; industry neutralization compares within industries."
+ },
+ {
+  "shape": "level",
+  "expression": "rank(anl10_salinnovation_score_fq1_1702)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Revenue revisions add information beyond earnings revisions (Jegadeesh and Livnat 2006); innovative ones carry the most (Gleason and Lee 2003).",
+  "rationale_data": "anl10_salinnovation_score_fq1_1702 (performance-weighted analyst estimates, analyst category): innovative increases minus decreases for current-quarter sales.",
+  "rationale_operators": "rank() normalises the net innovation score."
+ },
+ {
+  "shape": "history_relative",
+  "expression": "rank(ts_zscore(vec_avg(mean_estimate_eps_annual12), 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Earnings forecast revisions (Chan, Jegadeesh and Lakonishok 1996): the consensus annual EPS estimate relative to its own last quarter.",
+  "rationale_data": "mean_estimate_eps_annual12 (standardized analyst consensus forecasts, analyst category), a vector field aggregated per stock.",
+  "rationale_operators": "vec_avg() aggregates; ts_zscore(63) compares with the last quarter; rank() normalises."
+ },
+ {
+  "shape": "dispersion",
+  "expression": "-rank(stddev_estimate_targetprice_annual12_tribes / mean_estimate_targetprice_annual12_tribes)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Disagreement predicts lower returns (Diether, Malloy and Scherbina 2002); here the dispersion of analysts' price targets relative to their mean.",
+  "rationale_data": "stddev_estimate_targetprice_annual12_tribes and mean_estimate_targetprice_annual12_tribes (standardized analyst consensus forecasts, analyst category).",
+  "rationale_operators": "the standard deviation over the mean is the coefficient of variation; rank() and the minus sign short high disagreement."
+ },
+ {
+  "shape": "surprise_hold",
+  "expression": "trade_when(days_from_last_change(vec_avg(mean_surprise_value_fxadj_revenue_quarterly16)) == 0, rank(vec_avg(mean_surprise_value_fxadj_revenue_quarterly16)), -1)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Revenue surprises predict drift beyond earnings surprises (Jegadeesh and Livnat 2006): take the position when a new quarterly revenue surprise is reported and hold it.",
+  "rationale_data": "mean_surprise_value_fxadj_revenue_quarterly16 (standardized analyst consensus forecasts, analyst category): actual minus consensus quarterly revenue.",
+  "rationale_operators": "days_from_last_change() == 0 marks the report; trade_when() enters then and holds; rank() normalises."
+ },
+ {
+  "shape": "history_relative",
+  "expression": "rank(ts_zscore(anl10_gpsfq1_smart_ests_v2_2646, 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Accuracy-weighted (smart) estimates revise toward the truth faster than the plain consensus; their recent revision relative to history predicts returns (Chan, Jegadeesh and Lakonishok 1996).",
+  "rationale_data": "anl10_gpsfq1_smart_ests_v2_2646 (performance-weighted analyst estimates, analyst category): smart estimate of gross profit per share for Q1.",
+  "rationale_operators": "ts_zscore(63): today versus the last quarter; rank() normalises."
+ }
+]

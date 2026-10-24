@@ -1,0 +1,72 @@
+[
+ {
+  "expression": "(rank(atm_call_option_implied_volatility - atm_put_option_implied_volatility) - 0.5) * rank(market_capitalization_value_2)",
+  "neutralization": "FAST",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Risk-neutralized version of the call-minus-put implied volatility spread (Cremers-Weinbaum 2010): informed option demand predicts returns; neutralizing common style factors keeps only the stock-specific part of the signal.",
+  "rationale_data": "atm_call_option_implied_volatility and atm_put_option_implied_volatility: at-the-money implied volatilities; market_capitalization_value_2: company size used to weight liquid names.",
+  "rationale_operators": "rank() makes the spread a uniform cross-sectional score, centred by subtracting 0.5 and scaled by rank of size so liquid names carry more weight.",
+  "source_alpha": 184
+ },
+ {
+  "expression": "(rank(atm_call_option_implied_volatility - atm_put_option_implied_volatility) - 0.5) * rank(market_capitalization_value_2)",
+  "neutralization": "SLOW_AND_FAST",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Risk-neutralized version of the call-minus-put implied volatility spread (Cremers-Weinbaum 2010): informed option demand predicts returns; neutralizing common style factors keeps only the stock-specific part of the signal.",
+  "rationale_data": "atm_call_option_implied_volatility and atm_put_option_implied_volatility: at-the-money implied volatilities; market_capitalization_value_2: company size used to weight liquid names.",
+  "rationale_operators": "rank() makes the spread a uniform cross-sectional score, centred by subtracting 0.5 and scaled by rank of size so liquid names carry more weight.",
+  "source_alpha": 184
+ },
+ {
+  "expression": "rank(img30d_return_bisection_prob1_zackbatch) + rank(img30d_return_quintile)",
+  "neutralization": "SLOW_AND_FAST",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Risk-neutralized combination of two chart-image CNN return forecasts (Jiang, Kelly and Xiu 2023): averaging two views of the price image adds breadth; risk neutralization removes momentum and reversal exposure the image model shares with style factors.",
+  "rationale_data": "img30d_return_bisection_prob1_zackbatch and img30d_return_quintile: CNN forecasts of the next 30-day return from price chart images.",
+  "rationale_operators": "rank() puts both forecasts on the same uniform scale before adding them.",
+  "source_alpha": 212
+ },
+ {
+  "expression": "rank(img30d_return_bisection_prob1_zackbatch) + rank(img30d_return_quintile)",
+  "neutralization": "CROWDING",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Risk-neutralized combination of two chart-image CNN return forecasts (Jiang, Kelly and Xiu 2023): averaging two views of the price image adds breadth; risk neutralization removes momentum and reversal exposure the image model shares with style factors.",
+  "rationale_data": "img30d_return_bisection_prob1_zackbatch and img30d_return_quintile: CNN forecasts of the next 30-day return from price chart images.",
+  "rationale_operators": "rank() puts both forecasts on the same uniform scale before adding them.",
+  "source_alpha": 212
+ },
+ {
+  "expression": "rank(img30d_return_bisection_prob1_zackbatch) + rank(img30d_return_quintile)",
+  "neutralization": "STATISTICAL",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Risk-neutralized combination of two chart-image CNN return forecasts (Jiang, Kelly and Xiu 2023): averaging two views of the price image adds breadth; risk neutralization removes momentum and reversal exposure the image model shares with style factors.",
+  "rationale_data": "img30d_return_bisection_prob1_zackbatch and img30d_return_quintile: CNN forecasts of the next 30-day return from price chart images.",
+  "rationale_operators": "rank() puts both forecasts on the same uniform scale before adding them.",
+  "source_alpha": 212
+ },
+ {
+  "expression": "rank(ts_mean(analyst_60d_regression_pred, 21))",
+  "neutralization": "SLOW",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Slow-factor-neutralized analyst-based 60-day return forecast, smoothed over a month: keeps the forecast's stock-specific part and removes value, size and quality exposure.",
+  "rationale_data": "analyst_60d_regression_pred: model forecast of the 60-day return built from analyst data.",
+  "rationale_operators": "ts_mean() averages the forecast over 21 days to cut turnover; rank() makes it a uniform cross-sectional score.",
+  "source_alpha": 168
+ },
+ {
+  "expression": "rank(ts_zscore(avg_first_biasfree_price_target_estimate, 63))",
+  "neutralization": "SLOW",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Slow-factor-neutralized price-target revision: the bias-free price target relative to its own last quarter (Brav and Lehavy 2003), with style exposure removed.",
+  "rationale_data": "avg_first_biasfree_price_target_estimate: average analyst price target adjusted for known analyst biases.",
+  "rationale_operators": "ts_zscore() compares the target with its own 63-day history; rank() makes it a cross-sectional score.",
+  "source_alpha": 226
+ }
+]

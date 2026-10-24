@@ -1,0 +1,4 @@
+.env
+.p2a/
+__pycache__/
+*.pyc

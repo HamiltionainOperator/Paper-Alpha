@@ -1,0 +1,62 @@
+[
+ {
+  "expression": "rank(option_quantile5_20d_pred) + rank(long_term_120d_regression_prediction - short_term_20d_regression_prediction) + rank(ts_zscore(short_term_return_pred_r20_q1, 63))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Return forecasts from different models, inputs and horizons make partly independent errors; combining forecasts cancels part of that noise (Timmermann (2006) Handbook of Economic Forecasting; Rapach, Strauss and Zhou (2010) RFS; Gu, Kelly and Xiu (2020) RFS). This alpha averages 3 such signals whose daily PnL is at most 0.30 correlated, so the combination is stronger and less like any single crowded signal. The same mechanism tested in European stocks, where far fewer alphas use this data.",
+  "rationale_data": "rank(option_quantile5_20d_pred): option_quantile5_20d_pred (multi_source_model): 20-day forward return prediction for the 5th quantile using option-derived features.; rank(long_term_120d_regression_prediction - short_term_20d_regression_prediction): long_term_120d_regression_prediction (multifactor_return_pred): 120-day long-horizon regression-based return forecast.; short_term_20d_regression_prediction (multifactor_return_pred): Short-horizon (20-day) regression-based return forecast.; rank(ts_zscore(short_term_return_pred_r20_q1, 63)): short_term_return_pred_r20_q1 (multifactor_return_pred): Short-term return prediction for a 20-day horizon, regression output.",
+  "rationale_operators": "rank() puts each signal on the same uniform cross-sectional scale so each part carries a similar share of the risk; + averages them.; ts_zscore(): Calculates the Z-score of a time series, showing how far today's value is from the recent...",
+  "source_alpha": 299
+ },
+ {
+  "expression": "rank(option_quantile5_20d_pred) + rank(short_horizon_hedge3_quantile1_5d_pred)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Replace the analyst-revision multiplier with a second uncorrelated multi_source_model signal; combo adds breadth and reduces noise in liquid names. The same mechanism tested in European stocks, where far fewer alphas use this data.",
+  "rationale_data": "Uses only multi_source_model fields (option_quantile5_20d_pred, short_horizon_hedge3_quantile1_5d_pred), satisfying single-category theme; removes analyst field that may have caused sub-universe weakness.",
+  "rationale_operators": "Two rank operators plus one add = 3 operators, well under the 8-operator cap; 2 distinct fields under the 3-field cap.",
+  "source_alpha": 279
+ },
+ {
+  "expression": "rank(option_quantile5_20d_pred) + rank(long_term_120d_regression_prediction) + rank(ts_zscore(short_term_return_pred_r20_q1, 63))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Return forecasts from different models, inputs and horizons make partly independent errors; combining forecasts cancels part of that noise (Timmermann (2006) Handbook of Economic Forecasting; Rapach, Strauss and Zhou (2010) RFS; Gu, Kelly and Xiu (2020) RFS). This alpha averages 3 such signals whose daily PnL is at most 0.32 correlated, so the combination is stronger and less like any single crowded signal. The same mechanism tested in European stocks, where far fewer alphas use this data.",
+  "rationale_data": "rank(option_quantile5_20d_pred): option_quantile5_20d_pred (multi_source_model): 20-day forward return prediction for the 5th quantile using option-derived features.; rank(long_term_120d_regression_prediction): long_term_120d_regression_prediction (multifactor_return_pred): 120-day long-horizon regression-based return forecast.; rank(ts_zscore(short_term_return_pred_r20_q1, 63)): short_term_return_pred_r20_q1 (multifactor_return_pred): Short-term return prediction for a 20-day horizon, regression output.",
+  "rationale_operators": "rank() puts each signal on the same uniform cross-sectional scale so each part carries a similar share of the risk; + averages them.; ts_zscore(): Calculates the Z-score of a time series, showing how far today's value is from the recent...",
+  "source_alpha": 298
+ },
+ {
+  "expression": "rank(event_embedding_5d_regression_prediction) + rank(long_term_120d_regression_prediction)",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Fundamental law of active management (Grinold and Kahn): two weakly correlated forecasts (daily PnL correlation 0.18) of different horizons add breadth. The same mechanism tested in European stocks, where far fewer alphas use this data.",
+  "rationale_data": "event_embedding_5d_regression_prediction and long_term_120d_regression_prediction (multi factor market return predictions, model category).",
+  "rationale_operators": "rank() puts both forecasts on the same scale before adding them.",
+  "source_alpha": 211
+ },
+ {
+  "expression": "rank(img30d_return_bisection_prob1_zackbatch) + rank(img30d_return_quintile)",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Two chart-image CNN models (Jiang, Kelly and Xiu 2023) built on different networks; averaging their forecasts reduces model noise. The same mechanism tested in European stocks, where far fewer alphas use this data.",
+  "rationale_data": "img30d_return_bisection_prob1_zackbatch and img30d_return_quintile (deep learning chart-based alpha, model category).",
+  "rationale_operators": "rank() normalises each model's output before combining.",
+  "source_alpha": 212
+ },
+ {
+  "expression": "rank(ts_zscore(anl82_netq_deltaprofitability_profitability2, 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "truncation": 0.08,
+  "idea": "Changes in expected profitability (Hou, Xue and Zhang 2015): the predicted quarterly profitability change relative to its own last quarter. The same mechanism tested in European stocks, where far fewer alphas use this data.",
+  "rationale_data": "anl82_netq_deltaprofitability_profitability2 (analyst estimate prediction data, analyst category).",
+  "rationale_operators": "ts_zscore(63): today versus the last quarter; rank() normalises.",
+  "source_alpha": 228
+ }
+]

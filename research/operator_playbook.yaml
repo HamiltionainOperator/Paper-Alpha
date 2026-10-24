@@ -1,0 +1,211 @@
+# Construction playbook: which operators a field's structure calls for, how to lower production correlation and how
+# to raise fitness. Sources: BRAIN operator docs and Learn pages (synced to the store), the papers cited, and this
+# engine's own measurements (research/deep_research_round7.md). Read by p2a/engine/playbook.py into the generate and
+# refine prompts: rules whose tags match the fields' type, category and update frequency come first.
+# Tags: any, vector, matrix, sparse, event, news, analyst, fundamental, option, model, pv, group, shortinterest,
+# institutions, insiders.
+
+rules:
+  - id: reduce_vectors
+    tags: [vector]
+    rule: "A VECTOR field holds several values per stock and day (one per call, filing, bond, review, loan). Reduce it
+      before any cross-sectional operator: vec_avg for scores and levels, vec_sum for counts and flows (hires, shares
+      lent), vec_count for the number of events, vec_max / vec_min for extremes."
+    template: "rank(vec_avg({x}))"
+    source: "BRAIN Learn: Vector data fields"
+
+  - id: never_bare_sparse
+    tags: [sparse]
+    rule: "Never rank a sparse field bare. A field that updates monthly, quarterly or on events is NaN on most days, so
+      the alpha holds positions only on update days and a few stocks carry the book (CONCENTRATED_WEIGHT fails).
+      Measured: board-network and intangible-capital fields traded on 237 of 2493 days."
+    template: "rank(ts_backfill({x}, 63))"
+    source: "this engine, alphas 342-343, 404-407"
+
+  - id: sparse_persistent_form
+    tags: [sparse, analyst, news, fundamental]
+    rule: "If the field describes something that keeps predicting for weeks or months (call tone, ratings,
+      fundamentals), carry it forward with ts_backfill over the update interval (63 for quarterly, 252 for annual).
+      Measured: earnings-call answer tone held 63 days reached Sharpe 1.04; the same tone traded only 21 days after
+      each call reached 0.61."
+    template: "rank(ts_backfill({x}, 63))"
+    source: "Price, Doran, Peterson and Bliss (2012) JBF; this engine, alphas 430 and 452"
+
+  - id: sparse_event_form
+    tags: [sparse, event]
+    rule: "If the information is a reaction to the update itself, trade only around updates and close the position
+      after: trade_when(event condition, signal, exit condition). Decide between the persistent and the event form
+      by testing both once. Measured: board-network fields predicted only on update days (Sharpe 2.1-2.45 on those
+      days); carried forward they fell to 0.16-0.33."
+    template: "b = ts_backfill({x}, 252); trade_when(days_from_last_change(b) <= 5, rank(b), days_from_last_change(b) > 5)"
+    source: "BRAIN operator docs: trade_when, days_from_last_change; this engine, alphas 434-437"
+
+  - id: change_against_own_history
+    tags: [sparse, analyst, news, insiders]
+    rule: "Scores whose level differs persistently between firms (how optimistic a CEO always sounds, how generous a
+      company's reviewers are) are informative relative to the same firm's past: a recent mean against a long mean,
+      a time-series z-score, or the difference to the previous update with last_diff_value."
+    template: "b = ts_backfill({x}, 63); rank(ts_mean(b, 63) - ts_mean(b, 252))"
+    source: "Davis, Ge, Matsumoto and Zhang (2015) RAST; Green, Huang, Wen and Zhou (2019) JFE"
+
+  - id: consensus_snapshot_revision
+    tags: [analyst]
+    rule: "Analyst consensus datasets carry the same consensus at several snapshot dates (current, four weeks prior,
+      three months prior). A revision is (current - prior) / |prior| of the paired fields; this avoids ts_delta over
+      days on which the vector is missing. Prefer non-EPS measures (sales, capex, dividends): EPS revisions are a
+      crowded production factor."
+    template: "s1 = vec_avg({current}); s0 = vec_avg({prior}); rank((s1 - s0) / abs(s0))"
+    source: "Jegadeesh and Livnat (2006) JAE; Chan, Jegadeesh and Lakonishok (1996) JF"
+
+  - id: disagreement_ratio
+    tags: [analyst]
+    rule: "Disagreement is the forecast standard deviation over the absolute mean forecast (coefficient of variation),
+      not the raw standard deviation, which mostly measures firm size."
+    template: "-rank(vec_avg({stddev}) / abs(vec_avg({mean})))"
+    source: "Diether, Malloy and Scherbina (2002) JF"
+
+  - id: smooth_noisy_daily
+    tags: [option, event, news, shortinterest]
+    rule: "Daily option, short-selling and news fields are noisy: average them over about a week (ts_mean, or
+      ts_decay_linear for more weight on recent days) before ranking. This also cuts turnover."
+    template: "rank(ts_mean({x}, 5))"
+    source: "BRAIN operator docs: ts_decay_linear; Johnson and So (2012) JFE"
+
+  - id: scale_dollars
+    tags: [any]
+    rule: "Scale dollar or share quantities by the firm's size or by their own history (x / cap, x / volume, a ratio of
+      two counts); never multiply a signal by size, which moves the bet into one end of the liquidity range and fails
+      the sub-universe test."
+    template: "-rank(ts_backfill({x}, 21) / cap)"
+    source: "BRAIN Learn: How to pass the sub-universe test"
+
+  - id: unitless_inputs
+    tags: [any]
+    rule: "log, sqrt, power and signed_power expect unitless input: take a ratio first (x / ts_delay(x, d) for growth,
+      x / cap or x / volume for scale). log(shares) raised BRAIN's UNITS warning; the ratio ranks identically and does
+      not. Unit warnings do not block submission, but the clean form avoids doubt."
+    template: "s = ts_backfill({x}, 21); rank(s / ts_delay(s, 21))"
+    source: "BRAIN Learn: Understand results (unit warnings); this engine, alpha 516"
+
+  - id: peer_relative
+    tags: [group, fundamental, any]
+    rule: "Compare a firm with its peers when the field's level depends on the industry: group_rank or group_zscore by
+      industry / subindustry, or by size-matched peers from bucket(rank(cap)). A custom group also differs from the
+      standard neutralizations production alphas use."
+    template: "group_rank({x}, densify(bucket(rank(cap), range=\"0.1,1,0.1\")))"
+    source: "BRAIN operator docs: group_neutralize, bucket"
+
+  - id: coverage_from_peers
+    tags: [fundamental, sparse]
+    rule: "For fundamentals with gaps, group_backfill fills a missing value with the winsorized mean of the group's
+      recent values; kth_element(x, d, k=1, ignore=\"NaN 0\") skips zero placeholders."
+    template: "rank(group_backfill({x}, industry, 63))"
+    source: "BRAIN operator docs: group_backfill, kth_element"
+
+  - id: nan_safe_composite
+    tags: [any]
+    rule: "Combine signals as centred ranks with add(..., filter=true): a stock missing one part keeps the others.
+      Plain rank sums drop every stock missing any part (measured: 15-20% of the universe and about 0.4 Sharpe)."
+    template: "add(rank({x}) - 0.5, rank({y}) - 0.5, filter=true)"
+    source: "BRAIN operator docs: add; this engine, research/experiments/e6_nan_safe_composites.json"
+
+  - id: residual_on_crowded_factor
+    tags: [any, pv]
+    rule: "To test whether a signal carries anything beyond a crowded factor, regress it on the factor every day and
+      keep the residual: s - regression_proj(s, factor). regression_proj fits a + b*x with an intercept; vector_neut
+      has none, so against a rank (all values of one sign) it removes a constant and leaves the factor in. Measured:
+      an equity-bond gap with vector_neut still traded 0.80 like reversal; its regression residual had Sharpe 0."
+    template: "s = {signal}; s - regression_proj(s, rank(returns))"
+    source: "BRAIN operator docs: regression_proj, vector_neut; this engine, alphas 438-444"
+
+  - id: hold_with_trade_when
+    tags: [event, sparse, any]
+    rule: "trade_when(condition, signal, -1) changes positions only when the condition holds and keeps them otherwise:
+      the cleanest way to cut the turnover of an event signal without smoothing away the event."
+    template: "trade_when(volume > adv20, rank({x}), -1)"
+    source: "BRAIN Learn: Conditional operators"
+
+  - id: limit_small_changes
+    tags: [any]
+    rule: "hump(x, hump=0.01) ignores day-to-day changes below the threshold and caps larger ones: it lowers turnover
+      and drawdown of fast signals while keeping their direction."
+    template: "hump(rank({x}), hump=0.01)"
+    source: "BRAIN operator docs: hump"
+
+  - id: unexpected_component
+    tags: [any, fundamental, analyst]
+    rule: "When a field is mostly explained by its own driver (short interest by volume, hiring by size), the
+      unexpected part is the residual of a time-series regression on that driver."
+    template: "rank(ts_regression({y}, {x}, 252, rettype=0))"
+    source: "BRAIN operator docs: ts_regression"
+
+  - id: liquidity_split_decay
+    tags: [any]
+    rule: "If the sub-universe test fails, decay the liquid and the illiquid parts of the signal separately instead of
+      dropping the idea."
+    template: "ts_decay_linear({s}, 5) * rank(volume * close) + ts_decay_linear({s}, 10) * (1 - rank(volume * close))"
+    source: "BRAIN Learn: How to pass the sub-universe test"
+
+uniqueness:
+  - technique: "information that is not the stock's own price"
+    how: "Production is full of price-based factors. An idea on rarely used data still trades like them if its values
+      are mostly past returns: an equity-minus-bond-implied return (0.895 with production) and ETF flow growth (0.925)
+      did; management's tone in earnings-call answers (no price in it) came out at 0.654."
+    template: ""
+    evidence: "this engine, alphas 412, 419, 427, 430 (BRAIN correlation endpoints, 17 Oct 2026)"
+  - technique: "screen against crowded reference factors"
+    how: "Correlate the alpha's daily PnL with short-term reversal, momentum, size, low volatility, volume-price, value
+      and EPS revisions (p2a references). Every alpha above 0.7 with one of them was 0.72-0.93 with production; a low
+      value proves nothing, because a crowded dataset is crowded in other ways."
+    template: ""
+    evidence: "this engine, 60 alphas compared with BRAIN's measured production correlation"
+  - technique: "regression residual on the factor it resembles"
+    how: "s - regression_proj(s, factor) keeps only what the factor does not explain; if its Sharpe is gone, the idea was
+      the factor (drop it); if it stays, the residual is the unique alpha."
+    template: "s = {signal}; s - regression_proj(s, rank(ts_sum(returns, 5)))"
+    evidence: "this engine, alphas 442-444"
+  - technique: "fields few alphas use"
+    how: "Production correlation follows dataset crowding (alpha_count): prefer fields with tens of alphas, not tens of
+      thousands, and do not recombine popular forecast datasets (combinations of them were 0.82 with production)."
+    template: ""
+    evidence: "this engine, prior a + b*log10(alpha count) fitted on 22 measured alphas"
+  - technique: "risk-model neutralization"
+    how: "SLOW, FAST, SLOW_AND_FAST, CROWDING or STATISTICAL neutralization removes the style exposure production alphas
+      share; on this account it cut production correlation by about 0.08-0.12."
+    template: ""
+    evidence: "this engine, research/experiments/e3_risk_neutralization.json"
+
+fitness:
+  - technique: "returns, not turnover, for slow signals"
+    how: "fitness = Sharpe * sqrt(|returns| / max(turnover, 0.125)): below 12.5% turnover, turnover costs nothing and only
+      returns help. A slow signal with Sharpe 1.6 needs about 4.9% annual returns."
+    template: ""
+    evidence: "BRAIN Learn: Parameters in the simulation results"
+  - technique: "combine independent slow signals"
+    how: "BRAIN rescales the summed positions to the same book, so returns grow with sqrt(n / (1 + (n - 1) * mean
+      correlation)) while turnover stays the parts' mean: breadth raises fitness as well as Sharpe."
+    template: "add(rank({x}) - 0.5, rank({y}) - 0.5, rank({z}) - 0.5, filter=true)"
+    evidence: "this engine, combiner estimates against 8 simulated combinations"
+  - technique: "decay or hump for fast signals"
+    how: "Above about 40% turnover, raise the decay setting, smooth with ts_decay_linear, or hump the alpha; fitness and
+      the high-turnover test both improve."
+    template: "ts_decay_linear({s}, 5)"
+    evidence: "BRAIN Learn: Intermediate pack - improve your alpha"
+  - technique: "hold event positions"
+    how: "trade_when(condition, signal, -1) keeps positions between events, so event alphas do not churn."
+    template: "trade_when(days_from_last_change({x}) == 0, rank({x}), -1)"
+    evidence: "BRAIN Learn: Conditional operators"
+
+operators:
+  - {operator: ts_backfill, semantics: "last non-NaN value within d days (k-th most recent with k)", use_when: "sparse fields held between updates", pitfalls: "a window shorter than the update interval leaves gaps; it also carries stale values forward"}
+  - {operator: trade_when, semantics: "x true: take y; z true: NaN (close); else hold yesterday's value", use_when: "event alphas and turnover control", pitfalls: "exit -1 never closes; the held value is the alpha's, not the field's"}
+  - {operator: days_from_last_change, semantics: "days since x last changed", use_when: "age of the latest update, as a trade_when condition", pitfalls: "on a non-backfilled field NaN days count as changes"}
+  - {operator: last_diff_value, semantics: "most recent value within d days that differs from today's", use_when: "the previous quarter's value of a backfilled field", pitfalls: "NaN when nothing changed within d"}
+  - {operator: regression_proj, semantics: "cross-sectional fit a + b*x of y on x", use_when: "y - regression_proj(y, x) removes a factor with intercept", pitfalls: "x must cover the same stocks as y"}
+  - {operator: vector_neut, semantics: "x minus its projection on y, no intercept", use_when: "y already centred (e.g. rank(y) - 0.5)", pitfalls: "against a rank or a one-signed field it removes mostly a constant"}
+  - {operator: hump, semantics: "keeps yesterday's value unless the change exceeds the threshold, then moves by the limit", use_when: "fast signals with high turnover", pitfalls: "too large a threshold freezes the alpha"}
+  - {operator: ts_decay_linear, semantics: "linearly weighted average, recent days heavier; NaN as 0 unless dense", use_when: "smoothing noisy daily data", pitfalls: "sparse mode turns missing days into zeros"}
+  - {operator: group_backfill, semantics: "fills NaN with the winsorized mean of the group's last d days", use_when: "coverage for fundamentals", pitfalls: "fills with peers' values, not the firm's"}
+  - {operator: bucket, semantics: "custom groups from ranked values (range or explicit boundaries)", use_when: "size- or liquidity-matched peers for group operators", pitfalls: "wrap in densify() before group operators"}
+  - {operator: ts_regression, semantics: "rolling OLS of y on x over d days; rettype 0 residual, 2 slope, 6 R-squared", use_when: "unexpected component, betas", pitfalls: "needs enough valid pairs in the window"}
+  - {operator: add, semantics: "elementwise sum; filter=true treats NaN as 0", use_when: "NaN-safe composites", pitfalls: "without filter one missing part removes the stock"}

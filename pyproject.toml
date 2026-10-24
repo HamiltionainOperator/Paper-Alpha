@@ -1,0 +1,16 @@
+[project]
+name = "paper2alpha"
+version = "0.1.0"
+description = "Research papers -> WorldQuant BRAIN Power Pool alphas with free OpenRouter models"
+requires-python = ">=3.10"
+dependencies = ["requests>=2.31", "PyYAML>=6.0", "rich>=13.0", "pdfplumber>=0.10"]
+
+[project.scripts]
+p2a = "p2a.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["p2a*"]

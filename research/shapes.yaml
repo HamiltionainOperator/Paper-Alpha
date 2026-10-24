@@ -1,0 +1,268 @@
+# Alpha shapes: research-backed expression templates (rationale and sources in alpha_shapes_research.md).
+# This is knowledge, not engine code: the engine loads it, checks every template against the LIVE operator
+# catalog (shapes whose operators this account lacks are disabled), and learns from simulation results which
+# shape works on which kind of data.
+#
+# Placeholders: {x}, {y}  field expressions of the same data category (vector fields arrive as vec_avg(field))
+#               {v}       the raw vector field (vector-only shapes)
+#               {s}       the base signal a wrapper is applied to
+#               {size}    a company-size field of the same category (robustness wrappers only)
+#               {d} {ds} {ds2} {dl} {k}  windows taken from the field's speed
+
+speeds:                      # windows by how often the field changes
+  fast:   {d: 5,  ds: 3,  ds2: 6,  dl: 21,  k: 1}
+  medium: {d: 21, ds: 5,  ds2: 10, dl: 63,  k: 3}
+  slow:   {d: 63, ds: 10, ds2: 20, dl: 252, k: 5}
+speed_from_turnover:         # turnover of the field's level probe -> speed
+  fast: 0.25                 # at or above -> fast
+  medium: 0.05               # at or above -> medium, below -> slow
+
+# how any expression (LLM-written or hand-written) is classified: the first class whose operators appear wins.
+# Different classes on the same fields are different ideas (budgeted as separate families, still screened by PnL).
+classes:
+  event: [trade_when, days_from_last_change]
+  residual: [vector_neut, regression_proj, vector_proj]
+  trend: [ts_regression]
+  comovement: [ts_corr, ts_covariance]
+  dispersion: [vec_stddev, vec_range]
+  intensity: [vec_count]
+  change: [ts_delta, ts_zscore, ts_rank, ts_av_diff, ts_scale, ts_quantile, last_diff_value, ts_min_max_diff,
+           ts_min_max_cps]
+default_class: level
+
+# kinds of data, recognised from the catalog description and id of a field (case-insensitive regexes);
+# the first matching kind wins, so order matters
+kinds:
+  surprise: ["surprise", "actual vs", "beat", "\\bmiss"]
+  forecast: ["predict", "forecast", "expected return", "probabilit", "alpha score", "return quantile", "quantile.*return"]
+  implied: ["implied vol", "\\biv\\b", "skew", "\\bput\\b", "\\bcall\\b", "option", "straddle", "expected move", "parity"]
+  sentiment: ["sentiment", "\\btone\\b", "positive", "negative", "optimism", "pessimism", "emotion", "polarity"]
+  news_count: ["\\bnews\\b", "stor(y|ies)", "article", "buzz", "relevance", "novelty", "headline"]
+  analyst_estimate: ["estimate", "consensus", "analyst", "\\beps\\b", "revision", "recommendation", "price target",
+                     "target price", "broker"]
+  flow: ["short interest", "\\bshort\\b", "\\bloan", "lending", "utili[sz]ation", "borrow", "ownership", "\\betf",
+         "\\bflow", "holding"]
+  risk: ["\\bbeta\\b", "volatility", "\\brisk\\b", "drawdown", "correlation"]
+  quality_value: ["quality", "accrual", "profitab", "valuation", "\\bvalue\\b", "yield", "growth", "margin",
+                  "leverage", "score", "rank"]
+
+first_shape:                 # the probe a never-tried field of each kind gets (vector-only shapes need a vector field)
+  forecast: level
+  quality_value: level
+  implied: level
+  flow: level
+  risk: level
+  surprise: surprise_hold
+  analyst_estimate: history_relative
+  sentiment: level           # 16 Oct: event-gated news_day failed on 10 of 12 sentiment vectors; plain level carried signal
+  news_count: intensity
+unknown_kind_shapes: [level, change, history_relative, orthogonal]   # fields whose kind is not recognised
+pair_exclude_words: [confidence, count, number, error, std, deviation, rsquare, squared, stderr]   # never a "counterpart"
+
+shapes:
+  - id: level
+    class: level
+    fields: 1
+    template: "rank({x})"
+    kinds: [forecast, quality_value, flow, risk, surprise, implied, analyst_estimate, sentiment]
+    sources: ["Gu, Kelly and Xiu (2020) RFS"]
+    idea: "the field already is a forecast or score; rank it across stocks"
+  - id: change
+    class: change
+    fields: 1
+    template: "rank(ts_delta({x}, {d}))"
+    kinds: [analyst_estimate, implied, flow, quality_value, forecast]
+    speeds: [medium, slow]
+    sources: ["Chan, Jegadeesh and Lakonishok (1996) JF", "An, Ang, Bali and Cakici (2014) JF"]
+    idea: "revisions and updates carry information that prices absorb slowly"
+  - id: history_relative
+    class: change
+    fields: 1
+    template: "rank(ts_zscore({x}, {dl}))"
+    kinds: [analyst_estimate, implied, flow, quality_value, risk, forecast, sentiment]
+    sources: ["BRAIN Learn: ts_rank(operating_income, 252) example; Option6 guide"]
+    idea: "where today's value sits in the field's own history, net of stable level differences"
+  - id: trend
+    class: trend
+    fields: 1
+    template: "rank(ts_regression({x}, ts_step(1), {dl}, rettype=2))"
+    kinds: [analyst_estimate, quality_value]
+    speeds: [medium, slow]
+    sources: ["Novy-Marx (2015) fundamental momentum", "BRAIN Learn: Investing for the Future example"]
+    idea: "the slope of the field over time: persistent improvement or deterioration"
+  - id: fresh_update
+    class: event
+    fields: 1
+    template: "trade_when(days_from_last_change({x}) <= {k}, rank(ts_delta({x}, {d})), -1)"
+    kinds: [analyst_estimate, surprise]
+    speeds: [medium, slow]
+    sources: ["BRAIN Learn: Build Alphas using research papers", "Barber, Lehavy, McNichols and Trueman (2001) JF"]
+    idea: "trade only when the field has just updated, hold until the next update"
+  - id: surprise_hold
+    class: event
+    fields: 1
+    template: "trade_when(days_from_last_change({x}) == 0, rank({x}), -1)"
+    kinds: [surprise]
+    sources: ["Bernard and Thomas (1989) JAR", "Loh and Warachka (2012) MS"]
+    idea: "post-event drift: take the position on the event day and hold it"
+  - id: news_day
+    class: event
+    fields: 1
+    vector_only: true
+    template: "trade_when(vec_count({v}) > 0, rank(vec_avg({v})), -1)"
+    kinds: [sentiment, news_count]
+    sources: ["Tetlock (2007) JF", "Ke, Kelly and Xiu (2019) NBER w26186"]
+    idea: "update the news signal only on days with stories, hold it otherwise"
+  - id: intensity
+    class: intensity
+    fields: 1
+    vector_only: true
+    template: "rank(ts_mean(vec_count({v}), {dl}))"
+    kinds: [news_count, sentiment, analyst_estimate]
+    sources: ["Fang and Peress (2009) JF"]
+    idea: "attention: how much coverage the stock gets"
+  - id: dispersion
+    class: dispersion
+    fields: 1
+    vector_only: true
+    template: "-rank(vec_stddev({v}))"
+    kinds: [analyst_estimate, sentiment, forecast]
+    sources: ["Diether, Malloy and Scherbina (2002) JF"]
+    idea: "disagreement among analysts or stories predicts lower returns"
+  - id: spread
+    class: spread
+    fields: 2
+    pair: similar
+    template: "rank({x} - {y})"
+    kinds: [implied, forecast, analyst_estimate]
+    sources: ["Bali and Hovakimian (2009) MS", "Cremers and Weinbaum (2010) JFQA", "Da and Warachka (2011) JFE"]
+    idea: "the gap between two paired measures (call vs put, short vs long horizon) is the signal"
+  - id: zspread
+    class: spread
+    fields: 2
+    pair: similar
+    template: "rank(ts_zscore({x}, {dl}) - ts_zscore({y}, {dl}))"
+    kinds: [implied, analyst_estimate]
+    sources: ["BRAIN Learn: Option6 guide"]
+    idea: "standardized gap for mechanically linked fields"
+  - id: ts_residual
+    class: residual
+    fields: 2
+    pair: similar
+    template: "rank(ts_regression({x}, {y}, {dl}, rettype=0))"
+    kinds: [implied, analyst_estimate, forecast]
+    sources: ["BRAIN Learn: Option6 and Earnings4 guides"]
+    idea: "the part of x its counterpart does not explain over time"
+  - id: orthogonal
+    class: residual
+    fields: 2
+    pair: submitted
+    template: "vector_neut(rank({x}), rank({y}))"
+    kinds: [forecast, quality_value, implied, analyst_estimate, sentiment, flow, surprise]
+    sources: ["BRAIN Learn: Vector_neut operator"]
+    idea: "remove the exposure to an already-submitted signal so the new alpha does not trade like it"
+  - id: combo
+    class: combo
+    fields: 2
+    pair: diverse
+    template: "rank({x}) + rank({y})"
+    kinds: [forecast, quality_value, analyst_estimate, sentiment, implied]
+    sources: ["Grinold and Kahn, fundamental law of active management", "Lewellen (2015) CFR"]
+    idea: "two weakly correlated signals of one dataset: more independent breadth"
+  - id: interact
+    class: interaction
+    fields: 2
+    pair: diverse
+    template: "rank({x}) * rank({y})"
+    kinds: [forecast, sentiment, analyst_estimate]
+    sources: ["Stambaugh, Yu and Yuan (2012) JFE", "BRAIN Learn: High turnover alphas"]
+    idea: "a signal weighted by a conditioning variable"
+  - id: comove
+    class: comovement
+    fields: 2
+    pair: similar
+    template: "-ts_corr({x}, {y}, {dl})"
+    kinds: [analyst_estimate]
+    sources: ["Kakushadze (2016) 101 Formulaic Alphas", "BRAIN Learn: Alpha examples (est_ptp vs est_fcf)"]
+    idea: "two related series in lockstep: the information may already be priced"
+
+wrappers:                    # robustness fixes for a base signal {s}; never a new idea on their own
+  - id: liquidity_split_decay
+    remedy: LOW_SUB_UNIVERSE_SHARPE
+    template: "ts_decay_linear({s}, {ds}) * rank({size}) + ts_decay_linear({s}, {ds2}) * (1 - rank({size}))"
+    sources: ["BRAIN Learn: How to pass the Sub-universe test"]
+  - id: size_weight
+    remedy: LOW_SUB_UNIVERSE_SHARPE
+    template: "(rank({s}) - 0.5) * rank({size})"
+    sources: ["paper2alpha round 2: fixed 1 of 3 near-misses"]
+  - id: size_bucket_neutral
+    remedy: LOW_SUB_UNIVERSE_SHARPE
+    template: "group_neutralize({s}, densify(bucket(rank({size}), range=\"0.1,1,0.1\")))"
+    sources: ["BRAIN Learn: Group data fields"]
+  - id: hump
+    remedy: HIGH_TURNOVER
+    template: "hump({s}, hump=0.01)"
+    sources: ["BRAIN operator docs: hump"]
+
+# Combinations across fields (p2a/engine/combiner.py). Only signals whose data kinds share an economic mechanism
+# are joined: BRAIN's Dos and Don'ts forbid adding one data source's signal to another's without economic sense.
+# A kind may sit in several groups. Rationale and sources are written into the alpha description.
+combine_groups:
+  informed_trading:
+    kinds: [implied, flow, analyst_estimate, surprise]
+    rationale: "informed investors reveal private information through option demand, short selling and analyst
+      revisions; each measure is a noisy view of the same information, so their average is a cleaner one"
+    sources: ["Easley, O'Hara and Srinivas (1998) JF", "Cremers and Weinbaum (2010) JFQA",
+              "Boehmer, Jones and Zhang (2008) JF", "Chan, Jegadeesh and Lakonishok (1996) JF"]
+  forecast_ensemble:
+    kinds: [forecast]
+    rationale: "return forecasts from different models, inputs and horizons make partly independent errors;
+      combining forecasts cancels part of that noise"
+    sources: ["Timmermann (2006) Handbook of Economic Forecasting", "Rapach, Strauss and Zhou (2010) RFS",
+              "Gu, Kelly and Xiu (2020) RFS"]
+  fundamental_momentum:
+    kinds: [surprise, analyst_estimate, forecast, quality_value]
+    rationale: "prices underreact to news about fundamentals; earnings surprises, estimate revisions and
+      fundamental forecasts all measure that news from different angles"
+    sources: ["Bernard and Thomas (1989) JAR", "Chan, Jegadeesh and Lakonishok (1996) JF",
+              "Novy-Marx (2015) NBER w20984"]
+  attention_sentiment:
+    kinds: [sentiment, news_count]
+    rationale: "news tone and investor attention move prices for days; tone measured from different sources is a
+      noisy view of the same news flow"
+    sources: ["Tetlock (2007) JF", "Fang and Peress (2009) JF", "Da, Engelberg and Gao (2011) JF"]
+  forecast_and_information:
+    kinds: [forecast, implied, flow]
+    rationale: "a statistical return forecast and a direct measure of informed demand capture different parts of
+      the same future return (patterns in past data versus private information)"
+    sources: ["Gu, Kelly and Xiu (2020) RFS", "Cremers and Weinbaum (2010) JFQA", "Boehmer, Jones and Zhang (2008) JF"]
+  quality_low_risk:
+    kinds: [quality_value, risk]
+    rationale: "safe, profitable firms are underpriced relative to risky ones; quality and low-risk measures are
+      two views of the same mispricing"
+    sources: ["Asness, Frazzini and Pedersen (2019) RAS", "Frazzini and Pedersen (2014) JFE"]
+  informed_channels:
+    kinds: [option_smirk, option_iv_innovation, lending_tightness, call_answer_tone, call_leverage_tone, call_analyst_tone,
+            call_presentation_tone, lending_supply, option_order_flow, short_crowding, call_tone_surprise, option_iv_level]
+    rationale: "private information reaches prices through channels that different investors watch: informed option
+      traders steepen the smirk and move call relative to put implied volatility, managers reveal it in unscripted
+      answers, analysts in their questions, and the lending market shows short sellers' positioning; each channel is
+      a noisy, nearly independent view of the same information"
+    sources: ["Xing, Zhang and Zhao (2010) JFQA", "An, Ang, Bali and Cakici (2014) JF",
+              "Price, Doran, Peterson and Bliss (2012) JBF", "Chen, Nagar and Schoenfeld (2018) RAST",
+              "Engelberg, Reed and Ringgenberg (2018) JF"]
+  integrated_model:
+    kinds: [forecast, implied, flow, analyst_estimate, surprise, sentiment, quality_value, short_term_reversal, momentum,
+            news_overnight, overnight, board_network, earnings_management, organization_capital, intangible_capital,
+            innovation, innovation_composite, filing_text_change, filing_tone, filing_notes_change, filing_items_change,
+            etf_flows, etf_flow_mix, ownership_breadth, fund_breadth, salience, return_ordering, lottery,
+            information_continuity, short_selling_flow, retail_opinion, capital_structure, capital_structure_lead,
+            earnings_uncertainty, dividend_news, insider_trading]
+    integrated: true            # spans mechanisms: only used for composites of 4+ parts (combine.integrated_min_parts)
+    include_mechanism_groups: true   # plus every research mechanism's group in research/mechanisms.yaml
+    rationale: "an integrated multi-signal stock-selection model: established return predictors that carry independent
+      information are combined into one score per stock, which beats holding them as separate portfolios and raises
+      breadth (Sharpe grows with the square root of the number of independent signals)"
+    sources: ["Grinold and Kahn, fundamental law of active management", "Lewellen (2015) CFR",
+              "Fitzgibbons, Friedman, Pomorski and Serban (2017) JOI", "Green, Hand and Zhang (2017) RFS"]
+

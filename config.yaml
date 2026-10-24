@@ -1,0 +1,374 @@
+# paper2alpha configuration.
+# Operators, data fields, datasets, categories and valid simulation settings are NOT listed
+# here: they are synced live from the BRAIN API (`p2a sync`). This file only holds rules
+# and preferences you may want to change.
+
+paths:
+  data_dir: .p2a
+  prompts_dir: prompts
+
+brain:
+  api_base: https://api.worldquantbrain.com
+  min_request_interval_s: 1.2     # throttle for catalog GETs (the API rate-limits quickly)
+  max_retries: 6
+  session_file: session.json      # cached login cookie inside data_dir (chmod 600)
+  auth:
+    auto_open_browser: true       # biometric sign-in: open the link automatically...
+    browser_app: "Google Chrome"  # ...in this macOS app ("" = default browser)
+    persona_poll_interval_s: 15   # then check every 15 s whether the verification went through
+    persona_timeout_s: 600        # give up (and keep the link for `p2a login`) after 10 min
+  docs:
+    sync_tutorials: true          # index BRAIN Learn pages so the LLM sees official guidance
+    sync_operator_docs: true      # per-operator documentation pages + their examples
+  simulation:
+    max_concurrent: 3             # simultaneous simulations (a multi-simulation uses one slot)
+    multi_simulation: auto        # auto = use it if your account has MULTI_SIMULATION permission
+    multi_batch_size: 10
+    max_wait_s: 2400
+    stop_when_remaining_below: 25 # daily simulation quota guard (X-Ratelimit-Remaining)
+  check_timeout_s: 600            # waiting for /alphas/{id}/check correlation results (slow when BRAIN is busy)
+
+# Default simulation scope. Must be valid per OPTIONS /simulations (validated at runtime).
+target:
+  instrumentType: EQUITY
+  region: USA
+  universe: TOP3000
+  delay: 1
+
+default_settings:
+  decay: 4
+  neutralization: SUBINDUSTRY
+  truncation: 0.08
+  pasteurization: "ON"
+  unitHandling: VERIFY
+  nanHandling: "OFF"
+  maxTrade: "OFF"
+  language: FASTEXPR
+  visualization: false
+
+settings_policy:
+  replace_none_neutralization_with: MARKET   # NONE turns rank()-style alphas into long-only market bets; "" allows it
+
+# The engine's own quality gates (on top of the platform's Power Pool checks). Alphas that pass the platform's
+# checks but fail these are marked "suspect": not shown to the LLM as good examples, and sent to refinement.
+quality:
+  min_side_fraction: 0.03          # hold >= 3% of the universe on each side (TOP3000 -> 90 names)
+  min_ic_sharpe_ratio: 0.3         # investability-constrained Sharpe must keep >= 30% of the Sharpe
+  max_concentrated_weight: 0.25    # no single stock above 25% of the book (Power Pool exempts the platform check)
+
+# Fast Expression language rules used by the static validator. Operator signatures
+# themselves are parsed from the live /operators definitions.
+fastexpr:
+  scope: REGULAR
+  group_param_names: [group, g1, g2]
+  lookback_param_names: [d, lookback, nlength]
+  integer_param_names: [k, nth, rettype, lag]
+  vector_categories: [Vector]
+  backfill_operators: [ts_backfill, group_backfill]
+  infix_aliases: {"&&": and, "||": or, "!": not, "unary-": reverse}
+  allow_ternary: false            # force if_else(...) - avoids syntax the simulator may reject
+  allow_power_symbol: false       # force power()/signed_power() instead of '^'
+  max_lookback: 2520
+  min_coverage_warn: 0.6
+  group_hierarchy: [subindustry, industry, sector, market]   # finest -> coarsest (nested groups)
+  group_aggregators: [group_mean]                             # output is constant within each group
+  group_transforms: [group_rank, group_zscore, group_scale, group_neutralize, group_normalize]
+  monotonic_in_rank: [rank, zscore, scale, normalize]       # no-ops inside rank(): rank(zscore(x)) == rank(x)
+  type_overrides:
+    densify: {params: {x: GROUP}, returns: GROUP}
+    bucket: {returns: GROUP}
+    group_cartesian_product: {returns: GROUP}
+
+# Power Pool rules (from the BRAIN Power Pool documentation, Oct 2026).
+power_pool:
+  enabled: true
+  max_operators: 8
+  excluded_operators: [ts_backfill, group_backfill]
+  max_unique_fields: 3
+  grouping_fields: [country, industry, subindustry, currency, market, sector, exchange, split, adjfactor]
+  min_sharpe: 1.0
+  turnover_range: [0.01, 0.70]
+  correlation_limit: 0.5
+  must_pass_checks:
+    - LOW_TURNOVER
+    - HIGH_TURNOVER
+    - LOW_SUB_UNIVERSE_SHARPE
+    - LOW_ROBUST_UNIVERSE_SHARPE.WITH_RATIO
+    - LOW_ROBUST_UNIVERSE_RETURNS
+    - POWER_POOL_CORRELATION
+  quota_checks: [REGULAR_SUBMISSION, POWER_POOL_SUBMISSION]   # FAIL here = submittable later, not a defect
+  exempt_checks: [LOW_SHARPE, LOW_FITNESS, CONCENTRATED_WEIGHT, LOW_2Y_SHARPE, SELF_CORRELATION, PROD_CORRELATION,
+                  CLUSTER_TEST, IS_LADDER_SHARPE]   # regular-only checks: reported as quality flags, not blockers
+  eligible_classification: "POWER_POOL:POWER_POOL_ELIGIBLE"
+  theme_name_pattern: "(?i)power\\s*pool"
+  describe_before_check: true          # put the generated description on the alpha before the (read-only) check
+  theme_counts_grouping_fields: true   # verified 2026-10-16: group_rank(x, industry) fails a single-category
+                                       # theme because `industry` counts as price-volume data
+  description:
+    min_chars: 100
+    sections: ["Idea", "Rationale for data used", "Rationale for operators used"]
+
+# Crowded reference factors (p2a/engine/references.py): a local stand-in for BRAIN's rate-limited production-
+# correlation endpoints. Each is simulated once per scope; an alpha whose daily PnL correlates with one above
+# reference_limit carries that crowded factor (on this account ETF flow growth was 0.925 with production and an
+# equity-minus-bond-implied return 0.895: both were mostly the stock's own past return).
+osmosis:                          # p2a osmosis: Osmosis points per submitted alpha (read-only plan; BRAIN Learn:
+                                  # "Osmosis Allocation Guide for Consultants", last modified 2026-09-18)
+  min_scopes: 3                   # platform: at least 3 scopes (region x delay) for a valid allocation
+  min_alphas: 10                  # platform: at least 10 alphas per scope
+  points_per_scope: 100000        # platform: exactly 100,000 points per scope
+  ic_keep_min: 0.4                # guide: exclude alphas whose Sharpe falls ~60% or more under investability constraints
+  turnover_soft_max: 0.20         # guide: avoid turnover above 20% unless the constrained Sharpe stays robust ...
+  ic_keep_high_turnover: 0.7      # ... read here as keeping at least 70% of the Sharpe
+  max_pair_corr: 0.7              # guide: drop alphas with high mutual correlation (the weaker of each pair)
+  max_weight: 0.2                 # guide: control volatility - no alpha above 20% of a scope's points
+  min_weight: 0.02                # every allocated alpha gets at least 2% (2,000 points)
+  shrink_cov: 0.5                 # covariance shrunk halfway toward its diagonal (estimation noise)
+  shrink_sharpe: 0.5              # each alpha's Sharpe shrunk halfway toward the scope mean
+  cost_bps: 2.0                   # ASSUMPTION, not a platform figure: cost per dollar traded, for the after-cost view
+  correlation_days: 1000
+
+inventory:                        # p2a inventory: which simulated parts can still feed a production alpha
+  min_sharpe: 0.5                 # parts with |Sharpe| below this are not listed
+  max_part_fields: 4              # more non-generic fields = a composite, not a part
+  strong_sharpe: 0.8              # below this a part is "weak" (still usable as a minor part)
+  used_corr: 0.4                  # |PnL correlation| with a submitted alpha of the region at least this = "used"
+  illiquid_ratio: 0.3             # sub-universe Sharpe / Sharpe below this = "illiquid" (USA needs 0.43, EUR 0.52)
+  generic_fields: [returns, close, open, high, low, vwap, volume, adv20, cap, sharesout, equity]
+
+uniqueness:
+  reference_limit: 0.6            # measured 2026-10-17: every alpha above 0.7 was 0.72-0.93 with production; a low
+                                  # value proves nothing (model25 fields: 0.34 here, 0.97-0.99 with production)
+  exposure_min_sharpe: 0.6        # measure exposure only for alphas with |Sharpe| at least this (one PnL download each)
+  tilt_min: 0.2                   # p2a decrowd: factor tilts at least this large are regressed out (value 0.31 on #518)
+  max_tilts: 2
+  ref_prior_intercept: 0.35       # combiner prior for production correlation >= a + b x |reference correlation|
+  ref_prior_slope: 0.6
+  references:
+    - {id: reversal_5d, expression: "-rank(ts_sum(returns, 5))", neutralization: SUBINDUSTRY, decay: 4}
+    - {id: reversal_1d, expression: "-rank(returns)", neutralization: SUBINDUSTRY, decay: 4}
+    - {id: reversal_21d, expression: "-rank(ts_sum(returns, 21))", neutralization: SUBINDUSTRY, decay: 4}
+    - {id: momentum_12_1, expression: "rank(ts_sum(ts_delay(returns, 21), 231))", neutralization: SUBINDUSTRY, decay: 4}
+    - {id: size, expression: "-rank(log(cap))", neutralization: SUBINDUSTRY, decay: 4}
+    - {id: low_volatility, expression: "-rank(ts_std_dev(returns, 63))", neutralization: SUBINDUSTRY, decay: 4}
+    - {id: volume_price, expression: "-rank(ts_corr(close, volume, 10))", neutralization: SUBINDUSTRY, decay: 4}
+    - {id: value, expression: "rank(ts_backfill(equity, 252) / cap)", neutralization: SUBINDUSTRY, decay: 4}
+    - {id: eps_revision, expression: "rank(ts_zscore(ts_backfill(est_eps, 63), 63))", neutralization: SUBINDUSTRY, decay: 4}
+
+# Regular (production) route (p2a/engine/routes.py). BRAIN Learn "Consultant Submission Tests": every test must
+# PASS - Sharpe and fitness bars, turnover, weight, sub-universe, 2-year Sharpe (IS ladder; single-dataset ATOM
+# alphas may skip it), self-correlation < 0.7 and production correlation < 0.7 (max daily-PnL correlation with any
+# alpha in BRAIN's consultant pool). Bars are read from BRAIN's own check limits when present; these are fallbacks.
+regular:
+  enabled: true
+  prod_corr_target: 0.65          # eligible alphas above this get one de-tilted variant (p2a decrowd), to be more unique
+  decrowd: true
+  universe: target                # target = target.universe. TOP1000 multiplier themes need alphas that clear the bar
+                                  # in liquid names alone (measured 2026-10-16: our signals keep ~0.6x their Sharpe there)
+  theme_max_age_days: 3           # how long a theme seen in a check counts as active (for universe: auto)
+  min_sharpe: 1.58
+  min_fitness: 1.0
+  prod_correlation_limit: 0.7
+  self_correlation_limit: 0.7
+  max_operators: 64               # BRAIN's limit for regular alphas ("Expression with 69 operators exceeds limit of 64",
+                                  # 20 Oct); counted like BRAIN's operatorCount, ts_backfill included
+  excluded_operators: []          # unlike Power Pool, regular alphas count every operator
+  max_fields: 14                  # our own cap (Genius tie-breaks favour fewer); BRAIN sets no field limit for regular
+                                  # alphas - factor residuals (value, momentum) add 2-3 fields
+  near_miss_fraction: 0.8         # blocked only by the checks below and Sharpe >= 80% of the bar -> near miss
+  near_miss_checks: [LOW_SHARPE, LOW_FITNESS, LOW_2Y_SHARPE, IS_LADDER_SHARPE, PROD_CORRELATION,
+                     LOW_SUB_UNIVERSE_SHARPE, HIGH_TURNOVER]
+  info_checks: [MATCHES_THEMES, MATCHES_PYRAMID, OSMOSIS_ALLOCATION, CLUSTER_TEST, POWER_POOL_CORRELATION, UNITS]
+                                  # UNITS: "Unit warnings are provided for reference ... and do not prevent submission"
+                                  # (BRAIN Learn: Understand results)
+  quota_checks: [REGULAR_SUBMISSION, POWER_POOL_SUBMISSION]
+  atom_classification: "DATA_USAGE:SINGLE_DATA_SET"
+  atom_skips: [IS_LADDER_SHARPE]  # BRAIN Learn "ATOM Alphas": they must still pass the 2-year Sharpe test
+  check_min_fraction: 0.95        # spend BRAIN's slow check on alphas within 5% of the Sharpe bar
+  uniqueness_min_sharpe: 1.0      # measure production / self correlation (fast endpoints) from this Sharpe up
+  uniqueness_per_run: 6           # BRAIN limits correlation requests per hour (16 Oct: after ~20 in an hour the
+                                  # endpoints answered "retry" for 30+ minutes); spend them on near-submittable alphas
+  fitness_decay_turnover: 0.2     # fitness short and turnover above this -> one slower-decay variant
+  risk_neutralizations:           # the decorrelate remedy, chosen by turnover (BRAIN Learn "Risk Neutralized Alphas")
+    slow: SLOW
+    medium: CROWDING
+    fast: FAST
+  risk_slow_turnover_below: 0.15
+  risk_fast_turnover_above: 0.4
+  pyramid_endpoint: /users/self/activities/pyramid-multipliers
+
+# Combinations of weakly correlated, economically linked signals (p2a/engine/combiner.py; groups in
+# research/shapes.yaml combine_groups). Estimated from the daily PnL BRAIN already reported - no simulation.
+combine:
+  enabled: true
+  per_step: 6
+  part_min_sharpe: 0.6            # a part must carry signal on its own (unique ideas are often weak alone)
+  allow_flipped_parts: true       # a part whose probe was strongly negative enters with its sign inverted
+  part_max_fields: 2
+  part_max_operators: 10          # parts are single ideas (research templates need a few more operators)
+  part_min_sub_universe_ratio: 0.8
+  illiquid_parts: true            # a part below that ratio may still join at illiquid_part_weight; the combination's
+  illiquid_part_weight: 0.5       # own sub-universe ratio is estimated (sum w*sub / sum w*Sharpe; #486/#493/#494
+  sub_universe_margin: 1.06       # matched BRAIN within -0.027..+0.018 on 5 composites) and must clear BRAIN's ratio
+                                  # x this margin (#498: estimated 0.446, measured 0.419, needed 0.433)
+  part_min_active_ratio: 0.5      # a part must hold positions on at least half the days after its first trade (sparse
+                                  # fields not carried forward trade only on update days: 237 of 2493 days measured)
+  max_parts_considered: 60
+  max_part_correlation: 0.5       # parts that trade alike add nothing
+  max_size: 6                     # integrated composites of up to 6 parts (Sharpe 3+ needs breadth across signals)
+  integrated_min_parts: 4         # combinations across mechanisms only from 4 parts (an integrated model, not a pair)
+  allow_integrated: true
+  frontier: 25                    # best combinations of each size grown to the next size
+  triples_from_pairs: 25
+  third_part_gain: 0.1            # each added part must lift the estimated Sharpe by this much (weak but independent ideas add ~0.1)
+  sharpe_margin: 1.1              # estimated Sharpe must clear the route's bar by 10% (estimates are optimistic)
+  estimate_days: 0                # days of daily PnL behind the Sharpe estimate (0 = the whole simulation)
+  part_reuse: 2
+  nan_safe: true                  # add(rank(a) - 0.5, ..., filter=true): a stock missing one part keeps the others
+  parts_from_used: true           # a signal that trades like a submission can be one part of many; every combination
+                                  # is still screened against all submitted alphas (self-correlation < 0.7)
+  prod_prior_intercept: 0.45      # prior production correlation = a + b*log10(1 + dataset alpha count), fitted on
+  prod_prior_slope: 0.13          # this engine's 22 measured alphas (2026-10-16); BRAIN's own value replaces it
+  prod_dilution: 0.05             # combination prod corr ~ most crowded part x sd^-0.05: almost none, because
+                                  # production already holds combinations (2026-10-16: 5 combinations; 2026-10-17:
+                                  # #486 0.655 with a part at 0.654, #496/#497 0.83 from one reversal part)
+  part_max_ref_corr: 0.6          # regular route: parts that trade like a crowded reference factor stay out
+  part_max_submitted_corr: 0.6    # parts that already drive a submitted alpha stay out (the smirk: 0.75 with #499)
+  max_submitted_corr: 0.6         # combinations must stay below this with every submitted alpha (BRAIN allows 0.7)
+  max_ref_corr: 0.45              # regular route: combinations whose PnL trades this much like a reference factor are
+                                  # skipped (9 measured composites: >= 0.50 meant production correlation 0.77-0.83)
+  estimate_scaling: position      # position: parts' PnL added as simulated (rank sums give equal positions); risk: each
+                                  # scaled to unit volatility. 19 Oct, 11 composites: mean error 0.05 vs 0.12 Sharpe
+  turnover_haircut: 0.0           # with position scaling no turnover haircut is needed (it made the 11 estimates worse);
+  haircut_from_turnover: 0.2      # 0.8 was fitted on 8 combinations under risk scaling (2026-10-16)
+  max_turnover: 0.45              # mean part turnover above this: fitness and the estimate both fail
+  fitness_margin: 1.0             # regular route: estimated fitness >= regular.min_fitness x this
+
+# Power Pool themes: paste each month's rules from
+# https://support.worldquantbrain.com/hc/en-us/articles/38927747787031-Current-month-Power-Pool-Themes
+# The engine cross-checks them against the theme tags the API puts on datasets, and
+# against MATCHES_THEMES in simulation results. Category names are fuzzy-matched.
+themes:
+  - name: "D1 Power Pool Oct`26"
+    rule: "delay=1 & datacategory in ['pv', 'fundamnetal'] & single datacategory"
+    start: 2026-09-28
+    end: 2026-10-13
+  - name: "D1 Power Pool Oct`26 2"
+    rule: "delay=1 & datacategory in ['analyst', 'model', 'news'] & single datacategory"
+    start: 2026-10-14
+    end: 2026-10-27
+
+llm:
+  base_url: https://openrouter.ai/api/v1
+  free_only: true
+  min_context: 32000
+  exclude_patterns: ["safety", "guard", "moderation", "lyria", "embed", "tts", "whisper"]
+  prefer_patterns: []             # regexes tried first, e.g. ["nemotron-3-super", "gemma-4-31b"]
+  daily_request_budget: 45        # OpenRouter free tier is ~50 free-model requests/day without credits
+  budget_reset_utc_offset_h: 0    # the provider's quota day starts at 00:00 UTC (not local midnight)
+  per_minute_limit: 15
+  temperature: 0.6
+  max_tokens: 12000
+  reasoning_effort: medium        # none | low | medium | high (sent only to models that support it)
+  timeout_s: 240
+  app_title: paper2alpha
+
+generation:
+  candidates_per_call: 6
+  max_same_field_set: 2          # PP alphas must be <0.5 correlated: cap near-identical variants
+  max_repair_rounds: 2
+  datasets_per_hypothesis: 2
+  fields_shortlist: 45
+  min_field_coverage: 0.3
+  technical_field_patterns: ["timestamp", "\\bdate\\b", "\\butc\\b", "\\bisin\\b", "\\bcusip\\b", "\\bsedol\\b",
+                             "\\bticker\\b", "currency code", "pricing currency", "home currency", "iso code",
+                             "broker name", "broker id", "\\bidentifier\\b", "elapsed", "\\(int\\)"]
+  paper_context_chars: 7000
+  exemplars: 4
+  max_hypotheses_per_paper: 8
+
+refine:
+  enabled: true
+  near_miss_min_sharpe: 0.6       # |sharpe| above this is labelled near_miss (reporting only; the lifecycle decides work)
+  sign_flip_below: -0.8           # strongly negative sharpe -> labelled near_miss so the lifecycle can invert it
+  llm_batch: 4                    # promising families sent to the LLM in one refine call
+  variants_per_alpha: 3
+  sub_universe_alternatives:      # failed sub-universe test -> also try the signal directly in the liquid universe
+    TOP3000: TOP1000
+    TOP2000: TOP1000
+    TOP1000: TOP500
+  max_rounds: 2
+
+# When to keep working on an idea and when to drop it (p2a/engine/lifecycle.py). A family = the set of data
+# fields an alpha reads; settings changes and cosmetic wrappers of the same fields give correlated PnL, so they
+# share one budget. Fractions are relative to the Power Pool Sharpe floor (power_pool.min_sharpe).
+lifecycle:
+  drop_below_fraction: 0.5        # best Sharpe below 50% of the floor -> drop: settings cannot add signal
+  promising_fraction: 0.75        # best Sharpe from 75% of the floor -> one targeted refinement round
+  second_chance_sims: 2           # weaker families get a single expression-level attempt, then are dropped
+  flip_below_fraction: -0.6       # Sharpe at or below -60% of the floor -> invert once
+  max_sims_per_family: 5          # all variants of one field set together
+  max_children_per_round: 2       # new variants per family per refinement round
+  max_settings_variants: 1        # settings-only children per expression, and only to fix a specific failed check
+  min_gain: 0.05                  # a child must beat its parent's Sharpe by this much...
+  max_stalled_children: 2         # ...or after this many stalls the family is closed
+  sub_universe_drop_ratio: 0.5    # sub-universe Sharpe below 50% of its limit: illiquid effect -> drop
+  crowded_prod_correlation: 0.9   # correlation with production alphas above this: crowded -> drop
+  drop_crowded: true
+  used_self_correlation: 0.7      # BRAIN's SELF_CORRELATION at or above this -> the idea is used
+  submitted_correlation_limit:    # daily-PnL correlation with a submitted alpha that uses an idea up (default: power_pool.correlation_limit)
+  correlation_days: 1000          # recent days of daily PnL used for correlations (about four years)
+  liquidity_weighting: true       # sub-universe near-miss -> one variant scaled by company size (same data category)
+  liquidity_field_patterns: ["market value of the company", "market capitali[sz]ation"]
+  skip_closed_families: true      # new LLM candidates on used / dropped / winner families are not simulated
+  submitted_refresh_s: 1800       # how often to re-read your submitted alphas from BRAIN
+  submitted_lookback: 500
+
+# Exploration (p2a/engine/explorer.py): one cheap probe per untried field, datasets ordered by BRAIN's own
+# metadata (valueScore high, alphaCount low), fields chosen by their catalog description.
+explore:
+  enabled: true
+  probes: 10                      # probes per explore step (one simulation each)
+  fields_per_dataset: 2           # breadth over depth: different datasets give uncorrelated families
+  min_dataset_coverage: 0.5
+  min_field_coverage: 0.8
+  min_field_coverage_vs_dataset: 0.9   # ...or 90% of the dataset's own coverage, whichever is lower
+  value_weight: 1.0               # how strongly valueScore drives the dataset order
+  signal_patterns: ["predict", "forecast", "score", "probabilit", "signal", "rank", "sentiment", "revision",
+                    "surprise", "expected", "implied", "estimate", "consensus", "target", "recommendation"]
+  avoid_patterns: ["market cap", "capitali[sz]ation", "market value", "number of", "count of", "fiscal", "\\bdate\\b",
+                   "\\bcode\\b", "\\bname\\b", "identifier", "sector", "industry"]
+  wrapper: rank                   # must exist in the live operator catalog
+  vector_aggregator: vec_avg      # idem, for VECTOR fields
+  neutralization: SUBINDUSTRY
+
+# Alpha shapes (p2a/engine/shapes.py, shaper.py): research-backed templates in research/shapes.yaml.
+shapes:
+  library: research/shapes.yaml
+  enabled: true
+  per_step: 10                    # new shape candidates per shape step
+  per_field: 2                    # at most this many new shapes per field per step (breadth first)
+  base_min_sharpe: 0.5            # fields whose level probe reached 50% of the floor (either sign) get shapes
+  orthogonal_min_corr: 0.3        # orthogonalise only against submitted alphas it actually trades like
+  skip_reasons: ["artifact", "illiquid"]
+  in_prompt: 8                    # shapes listed in each generation prompt
+
+# Research mechanisms (p2a/engine/mechanisms.py, research/mechanisms.yaml): high-breadth return effects written in
+# BRAIN operators, with roles filled from the live catalog; enhancers raise the Sharpe of signals that already work.
+mechanisms:
+  enabled: true
+  library: research/mechanisms.yaml
+  per_step: 8                     # mechanism candidates per step
+  per_mechanism: 1                # fillings per mechanism per step: breadth first, one probe per idea
+  search_limit: 100               # live catalog search per role term (BRAIN caps searches at 100 results)
+  enhance_min_sharpe: 1.4         # only signals that already work are enhanced
+  enhance_per_step: 4
+  fast_d1_min_margin_bps: 4       # BRAIN Learn "Fast D1": keep high-turnover Fast D1 alphas above 4 bps margin
+
+scoring:
+  sharpe: 1.0
+  fitness: 0.35
+  margin_bps: 0.05                # per basis point of margin, capped below
+  margin_cap_bps: 20
+  turnover_soft_cap: 0.35         # turnover above this is penalised (after-cost focus)
+  turnover_penalty: 2.0

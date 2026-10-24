@@ -1,0 +1,308 @@
+[
+ {
+  "shape": "orthogonal",
+  "expression": "vector_neut(rank(mid_term_seasonal_adjusted_return_forecast_60d), rank(short_term_return_pred_r20_q1))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "Heston and Sadka (2008) seasonality-adjusted 60-day forecast, with its exposure to the submitted 20-day forecast removed so the alpha carries only the information the submitted one lacks.",
+  "rationale_data": "mid_term_seasonal_adjusted_return_forecast_60d and short_term_return_pred_r20_q1 (multi factor market return predictions, model category).",
+  "rationale_operators": "vector_neut(): makes the 60-day forecast rank orthogonal to the 20-day forecast rank each day; rank() normalises both."
+ },
+ {
+  "shape": "orthogonal",
+  "expression": "vector_neut(rank(predicted_stock_return_50d_image), rank(short_term_return_pred_r20_q1))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "Image-based 50-day return forecast (Jiang, Kelly and Xiu 2023), orthogonalised to the submitted 20-day forecast so the two do not trade alike.",
+  "rationale_data": "predicted_stock_return_50d_image (option chart image return prediction) and short_term_return_pred_r20_q1 (multi factor market return predictions), both model category.",
+  "rationale_operators": "vector_neut(): removes the cross-sectional exposure to the 20-day forecast; rank() normalises."
+ },
+ {
+  "shape": "spread",
+  "expression": "rank(long_term_120d_regression_prediction - short_term_20d_regression_prediction)",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "Term structure of expected returns: Da and Warachka (2011) show the gap between long- and short-horizon forecasts carries information; here the 120-day minus the 20-day model forecast.",
+  "rationale_data": "long_term_120d_regression_prediction and short_term_20d_regression_prediction (multi factor market return predictions, model category).",
+  "rationale_operators": "the difference isolates the horizon disagreement; rank() normalises it."
+ },
+ {
+  "shape": "ts_residual",
+  "expression": "rank(ts_regression(long_term_120d_regression_prediction, short_term_20d_regression_prediction, 63, rettype=0))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "The part of the 120-day forecast that the 20-day forecast does not explain over the last quarter: slow information that short-horizon models miss (BRAIN Option6 guide prefers regression residuals to correlations).",
+  "rationale_data": "long_term_120d_regression_prediction and short_term_20d_regression_prediction (multi factor market return predictions, model category).",
+  "rationale_operators": "ts_regression(rettype=0): the residual of a 63-day time-series regression; rank() normalises."
+ },
+ {
+  "shape": "combo",
+  "expression": "rank(event_embedding_5d_regression_prediction) + rank(long_term_120d_regression_prediction)",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "Fundamental law of active management (Grinold and Kahn): two weakly correlated forecasts (daily PnL correlation 0.18) of different horizons add breadth.",
+  "rationale_data": "event_embedding_5d_regression_prediction and long_term_120d_regression_prediction (multi factor market return predictions, model category).",
+  "rationale_operators": "rank() puts both forecasts on the same scale before adding them."
+ },
+ {
+  "shape": "combo",
+  "expression": "rank(img30d_return_bisection_prob1_zackbatch) + rank(img30d_return_quintile)",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "Two chart-image CNN models (Jiang, Kelly and Xiu 2023) built on different networks; averaging their forecasts reduces model noise.",
+  "rationale_data": "img30d_return_bisection_prob1_zackbatch and img30d_return_quintile (deep learning chart-based alpha, model category).",
+  "rationale_operators": "rank() normalises each model's output before combining."
+ },
+ {
+  "shape": "spread",
+  "expression": "rank(img30d_return_bisection_prob1_zackbatch - img60d_return_bisection_prob1_zackbatch)",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "Short- versus long-horizon chart signals: the 30-day minus the 60-day CNN probability captures whether the chart pattern points to a near-term move (Jiang, Kelly and Xiu 2023).",
+  "rationale_data": "img30d_return_bisection_prob1_zackbatch and img60d_return_bisection_prob1_zackbatch (deep learning chart-based alpha, model category).",
+  "rationale_operators": "the difference isolates the horizon gap; rank() normalises."
+ },
+ {
+  "shape": "history_relative",
+  "expression": "rank(ts_zscore(vec_avg(alpha_score), 63))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "Where a vendor alpha score stands relative to its own recent history: improvements in a stock's forecast, net of stable level differences.",
+  "rationale_data": "alpha_score (AI equity alpha forecasts, model category), a vector field aggregated per stock.",
+  "rationale_operators": "vec_avg(): one value per stock and day; ts_zscore(63): today versus the last quarter; rank() normalises."
+ },
+ {
+  "shape": "change",
+  "expression": "rank(ts_delta(mid_term_seasonal_adjusted_return_forecast_60d, 21))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "Revisions of a forecast: the one-month change in the seasonality-adjusted 60-day forecast (forecast revisions carry information, Chan, Jegadeesh and Lakonishok 1996).",
+  "rationale_data": "mid_term_seasonal_adjusted_return_forecast_60d (multi factor market return predictions, model category).",
+  "rationale_operators": "ts_delta(21): one-month change; rank() normalises."
+ },
+ {
+  "shape": "interact",
+  "expression": "rank(option_quantile5_20d_pred) * rank(analyst_quantile1_120d_pred)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Agreement of two independent sources: option-implied and analyst-based forecasts; stocks favoured by both get the largest weight (Stambaugh, Yu and Yuan 2012 on conditioning).",
+  "rationale_data": "option_quantile5_20d_pred and analyst_quantile1_120d_pred (multi-source market return prediction, model category).",
+  "rationale_operators": "the product of the two ranks emphasises stocks high on both."
+ },
+ {
+  "shape": "zspread",
+  "expression": "rank(ts_zscore(atm_call_option_implied_volatility, 63) - ts_zscore(atm_put_option_implied_volatility, 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Call-put implied volatility spread (Cremers and Weinbaum 2010; Bali and Hovakimian 2009), measured as each side's deviation from its own quarter so mechanical level differences cancel (BRAIN Option6 guide).",
+  "rationale_data": "at-the-money call and put implied volatilities (option chart model, model category).",
+  "rationale_operators": "ts_zscore(63): each volatility relative to its last quarter; the difference is the standardized spread; rank() normalises."
+ },
+ {
+  "shape": "ts_residual",
+  "expression": "rank(ts_regression(atm_call_option_implied_volatility, atm_put_option_implied_volatility, 63, rettype=0))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "The part of call implied volatility that put implied volatility does not explain over the last quarter: one-sided demand for calls signals informed bullish trading (Pan and Poteshman 2006; Cremers and Weinbaum 2010).",
+  "rationale_data": "at-the-money call and put implied volatilities (option chart model, model category).",
+  "rationale_operators": "ts_regression(rettype=0): residual of call IV on put IV over 63 days; rank() normalises."
+ },
+ {
+  "shape": "history_relative",
+  "expression": "rank(ts_zscore(mean_volatility_skew_30d_short_term_2, 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Implied-volatility skew relative to its own history: shifts in the smirk carry the information (Xing, Zhang and Zhao 2010); the plain level only reached Sharpe 0.74.",
+  "rationale_data": "mean_volatility_skew_30d_short_term_2 (option horizon decomposition, model category).",
+  "rationale_operators": "ts_zscore(63): today's skew versus the last quarter; rank() normalises."
+ },
+ {
+  "shape": "change",
+  "expression": "rank(ts_delta(atm_call_volatility_30d_medium_term_2, 21) - ts_delta(atm_put_volatility_30d_medium_term, 21))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "An, Ang, Bali and Cakici (2014): stocks whose call implied volatility rose over the past month outperform and those whose put implied volatility rose underperform.",
+  "rationale_data": "30-day at-the-money call and put implied volatilities (option horizon decomposition, model category).",
+  "rationale_operators": "ts_delta(21): one-month changes; their difference is long call-volatility increases and short put-volatility increases; rank() normalises."
+ },
+ {
+  "shape": "size_bucket_neutral",
+  "expression": "group_neutralize(rank(atm_call_option_implied_volatility - atm_put_option_implied_volatility), densify(bucket(rank(market_capitalization_value_2), range=\"0.1,1,0.1\")))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "The call-put spread (Cremers and Weinbaum 2010) compared within size deciles, so the bet does not lean on small stocks (BRAIN group-data guide; sub-universe robustness).",
+  "rationale_data": "at-the-money call and put implied volatilities (option chart model) and market_capitalization_value_2 (scorings data) for the size groups, all model category.",
+  "rationale_operators": "bucket(rank(size)) makes ten size groups, densify() removes empty ones, group_neutralize() demeans the ranked spread within each."
+ },
+ {
+  "shape": "liquidity_split_decay",
+  "expression": "s = rank(option_quantile5_20d_pred); w = rank(market_capitalization_value_2); ts_decay_linear(s, 3) * w + ts_decay_linear(s, 6) * (1 - w)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Option-implied 20-day forecast (An et al. 2014 on option information), decayed faster in liquid names and slower in illiquid ones, BRAIN's suggested fix for a sub-universe near-miss.",
+  "rationale_data": "option_quantile5_20d_pred (multi-source market return prediction) and market_capitalization_value_2 (scorings data), model category.",
+  "rationale_operators": "ts_decay_linear(3) for large companies and (6) for small ones, blended by the rank of company size."
+ },
+ {
+  "shape": "history_relative",
+  "expression": "rank(ts_zscore(earnings_per_share_average, 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Earnings forecast revisions (Chan, Jegadeesh and Lakonishok 1996): the consensus EPS estimate relative to its own last quarter captures recent revisions without per-share scale problems.",
+  "rationale_data": "earnings_per_share_average (analyst estimate data for equity, analyst category): mean of the EPS estimates.",
+  "rationale_operators": "ts_zscore(63): today versus the last quarter; rank() normalises across stocks."
+ },
+ {
+  "shape": "fresh_update",
+  "expression": "trade_when(days_from_last_change(earnings_per_share_average) <= 3, rank(ts_delta(earnings_per_share_average, 21) / abs(ts_delay(earnings_per_share_average, 21))), -1)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Revisions matter most when fresh (Hawkins, Chamberlin and Daniel 1984; BRAIN research-paper guide): trade the one-month relative EPS revision only in the days after the consensus changes, then hold.",
+  "rationale_data": "earnings_per_share_average (analyst estimate data for equity, analyst category).",
+  "rationale_operators": "days_from_last_change() <= 3 marks a fresh update; ts_delta/abs(ts_delay) is the relative revision; trade_when() holds positions between updates."
+ },
+ {
+  "shape": "trend",
+  "expression": "rank(ts_regression(anl82_netq_deltaprofitability_profitability2, ts_step(1), 63, rettype=2))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Expected profitability trends: firms whose predicted profitability keeps improving outperform (Hou, Xue and Zhang 2015 profitability factor; Novy-Marx 2015 fundamental momentum).",
+  "rationale_data": "anl82_netq_deltaprofitability_profitability2 (analyst estimate prediction data, analyst category).",
+  "rationale_operators": "ts_regression on ts_step(1) over 63 days returns the slope (rettype=2); rank() normalises."
+ },
+ {
+  "shape": "history_relative",
+  "expression": "rank(ts_zscore(avg_first_biasfree_price_target_estimate, 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Price-target revisions carry information beyond recommendations (Brav and Lehavy 2003): the bias-adjusted target relative to its own last quarter.",
+  "rationale_data": "avg_first_biasfree_price_target_estimate (bias adjusted analyst forecasts, analyst category).",
+  "rationale_operators": "ts_zscore(63): target versus its recent history; rank() normalises."
+ },
+ {
+  "shape": "spread",
+  "expression": "rank((num_upward_biasfree_price_target_revisions - num_downward_biasfree_price_target_revisions) / (count_bias_adjusted_price_target_estimates + 1))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Revision breadth: the share of analysts raising versus cutting their price targets (Brav and Lehavy 2003; breadth refinements of revision signals).",
+  "rationale_data": "counts of upward and downward bias-free price target revisions and the number of targets (bias adjusted analyst forecasts, analyst category).",
+  "rationale_operators": "the difference over the count (+1 to avoid dividing by zero) is net breadth; rank() normalises."
+ },
+ {
+  "shape": "history_relative",
+  "expression": "rank(ts_zscore(anl82_netq_deltaprofitability_profitability2, 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Changes in expected profitability (Hou, Xue and Zhang 2015): the predicted quarterly profitability change relative to its own last quarter.",
+  "rationale_data": "anl82_netq_deltaprofitability_profitability2 (analyst estimate prediction data, analyst category).",
+  "rationale_operators": "ts_zscore(63): today versus the last quarter; rank() normalises."
+ },
+ {
+  "shape": "level",
+  "expression": "rank(eps_y1_estimate_change_3mo)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Three-month consensus EPS revision (Chan, Jegadeesh and Lakonishok 1996 'REV6'): stocks with upward revisions keep outperforming.",
+  "rationale_data": "eps_y1_estimate_change_3mo (global analyst factor signals, analyst category).",
+  "rationale_operators": "rank() normalises the revision across stocks; industry neutralization compares within industries."
+ },
+ {
+  "shape": "surprise_hold",
+  "expression": "trade_when(days_from_last_change(act_q_eps_surprisemean) == 0, rank(act_q_eps_surprisemean), -1)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Post-earnings-announcement drift (Bernard and Thomas 1989): take the position when a new earnings surprise is reported and hold it until the next one.",
+  "rationale_data": "act_q_eps_surprisemean (broker estimates, analyst category): mean EPS surprise of the latest quarter.",
+  "rationale_operators": "days_from_last_change() == 0 marks the report day; trade_when() enters then and holds; rank() normalises."
+ },
+ {
+  "shape": "change",
+  "expression": "rank(ts_backfill((vec_avg(anl44_2_epsr_value) - vec_avg(anl44_2_epsr_prevalue)) / abs(vec_avg(anl44_2_epsr_prevalue)), 21))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Estimate-level revisions: each new broker estimate compared with that broker's previous one; the relative revision predicts returns (Givoly and Lakonishok 1979).",
+  "rationale_data": "anl44_2_epsr_value and anl44_2_epsr_prevalue (integrated broker estimates, analyst category): current and previous estimate at each revision event.",
+  "rationale_operators": "vec_avg() aggregates the day's revisions; the difference over the previous value is the relative revision; ts_backfill(21) carries it between events; rank() normalises."
+ },
+ {
+  "shape": "dispersion",
+  "expression": "-rank(vec_avg(anl44_best_eps_stddev) / abs(vec_avg(anl44_best_eps)))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Diether, Malloy and Scherbina (2002): high dispersion of analyst forecasts predicts lower returns.",
+  "rationale_data": "anl44_best_eps_stddev and anl44_best_eps (integrated broker estimates, analyst category): dispersion and level of the EPS consensus.",
+  "rationale_operators": "the standard deviation over the absolute consensus is the coefficient of variation; rank() and the minus sign short high disagreement."
+ },
+ {
+  "shape": "news_day",
+  "expression": "trade_when(vec_count(nws18_ssc) > 0, rank(vec_avg(nws18_ssc)), -1)",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "News tone predicts returns (Tetlock 2007; Tetlock, Saar-Tsechansky and Macskassy 2008): update the story sentiment signal on news days and hold it in between.",
+  "rationale_data": "nws18_ssc (Ravenpack news data, news category): granular story sentiment from -1 to +1.",
+  "rationale_operators": "vec_count() > 0 marks news days; vec_avg() averages the day's stories; trade_when() holds the position between news days."
+ },
+ {
+  "shape": "news_day",
+  "expression": "trade_when(vec_count(mws82_sentiment) > 0, rank(vec_avg(mws82_sentiment)), -1)",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "Headline sentiment from a deep network (Ke, Kelly and Xiu 2019 on text-based return prediction): update on days with headlines, hold otherwise.",
+  "rationale_data": "mws82_sentiment (sentiment analysis from DNN, news category): per-headline sentiment.",
+  "rationale_operators": "vec_count() > 0 marks headline days; vec_avg() averages them; trade_when() holds positions between them."
+ },
+ {
+  "shape": "news_day",
+  "expression": "trade_when(vec_count(news_impact_projection_score) > 0, rank(vec_avg(news_impact_projection_score)), -1)",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "Projected market impact of news flashes: prices take days to absorb news, so a forecast of the impact predicts the drift (Tetlock 2007; Ke, Kelly and Xiu 2019).",
+  "rationale_data": "news_impact_projection_score (Ravenpack news data, news category).",
+  "rationale_operators": "vec_count() > 0 marks news days; vec_avg() averages the day's scores; trade_when() holds positions in between."
+ },
+ {
+  "shape": "interact",
+  "expression": "(rank(mean_composite_sentiment_score) - 0.5) * rank(mean_event_novelty_score)",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "Tetlock (2011): investors react to novel news while stale news reverses, so tone matters most when the news is new; tone sets the side, novelty the size.",
+  "rationale_data": "mean_composite_sentiment_score and mean_event_novelty_score (Ravenpack news data, news category).",
+  "rationale_operators": "rank() - 0.5 centres the tone; multiplying by the rank of novelty scales positions by how new the news is."
+ },
+ {
+  "shape": "intensity",
+  "expression": "-rank(ts_mean(vec_count(nws18_relevance), 63))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "Fang and Peress (2009): stocks with little media coverage earn higher returns than heavily covered ones.",
+  "rationale_data": "nws18_relevance (Ravenpack news data, news category): one entry per story, so its count measures coverage.",
+  "rationale_operators": "vec_count() counts stories per day; ts_mean(63) averages coverage over a quarter; the minus sign buys neglected stocks."
+ },
+ {
+  "shape": "level",
+  "expression": "rank(ts_decay_linear(ts_backfill(vec_avg(nws18_ssc), 5), 5))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "News momentum (Wang, Zhang and Zhu 2018): recent story tone, carried over short news gaps and smoothed over a week.",
+  "rationale_data": "nws18_ssc (Ravenpack news data, news category).",
+  "rationale_operators": "vec_avg() aggregates stories; ts_backfill(5) bridges days without news; ts_decay_linear(5) weights recent days more; rank() normalises."
+ },
+ {
+  "shape": "history_relative",
+  "expression": "-rank(ts_zscore(vec_avg(shrt7_combo_utilisation_x_rate), 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Shorting demand shifts (Cohen, Diether and Malloy 2007): a rise in lending utilisation times fee relative to its own history predicts lower returns.",
+  "rationale_data": "shrt7_combo_utilisation_x_rate (short selling model, model category).",
+  "rationale_operators": "vec_avg() aggregates; ts_zscore(63) compares with the last quarter; the minus sign shorts rising shorting pressure."
+ },
+ {
+  "shape": "change",
+  "expression": "-rank(ts_delta(vec_avg(shrt7_combo_utilisation), 21))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "Increases in the share of lendable shares on loan signal informed short selling (Cohen, Diether and Malloy 2007; Boehmer, Jones and Zhang 2008).",
+  "rationale_data": "shrt7_combo_utilisation (short selling model, model category): normalised lending utilisation.",
+  "rationale_operators": "vec_avg() aggregates; ts_delta(21) is the one-month change; the minus sign shorts rising utilisation."
+ }
+]
