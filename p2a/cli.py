@@ -354,7 +354,15 @@ def _main(argv=None) -> int:
     if cmd == "try":
         if args.file:
             data = json.loads(open(args.file).read())
-            raws = (data.get("probes") or []) if isinstance(data, dict) else data
+            if isinstance(data, dict):  # {"_meta": ..., "probes": [...]}, or one entry on its own
+                raws = data["probes"] if "probes" in data else [data] if "expression" in data else []
+            else:
+                raws = data
+            bad = [i for i, r in enumerate(raws) if not isinstance(r, dict) or not r.get("expression")]
+            if not isinstance(raws, list) or not raws or bad:
+                console.print(f"[red]{esc(args.file)}: expected a list of entries with an \"expression\" (or "
+                              f"{{\"probes\": [...]}}){f'; entries {bad[:5]} are not' if bad else ''}[/red]")
+                return 1
         elif args.expression:
             raws = [{"expression": args.expression, "neutralization": args.neutralization, "decay": args.decay,
                      "truncation": args.truncation, "idea": args.idea, "hypothesis_id": args.hypothesis}]
