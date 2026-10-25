@@ -1,0 +1,42 @@
+[
+ {
+  "expression": "-group_rank(log(cap / ts_delay(cap, 252)) - ts_sum(log(1 + returns), 252), country)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "firms issue shares when they are overvalued and buy them back when undervalued; investors under-react to these managerial signals, so net issuers underperform and repurchasers outperform for years (one-year window, Pontiff-Woodgate horizon).",
+  "rationale_data": "cap and returns (price-volume data, every region): market value growth not explained by returns is net issuance minus payouts",
+  "rationale_operators": "log(cap / ts_delay(cap, k)) - ts_sum(log(1 + returns), k) is the composite issuance of Daniel-Titman; the minus sign shorts issuers and buys repurchasers; group_rank by country compares firms within their own market and currency"
+ },
+ {
+  "expression": "-group_rank(log(cap / ts_delay(cap, 1260)) - ts_sum(log(1 + returns), 1260), country)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "firms issue shares when they are overvalued and buy them back when undervalued; investors under-react to these managerial signals, so net issuers underperform and repurchasers outperform for years (five-year window, Daniel-Titman horizon; FIN uses both).",
+  "rationale_data": "cap and returns (price-volume data, every region): market value growth not explained by returns is net issuance minus payouts",
+  "rationale_operators": "log(cap / ts_delay(cap, k)) - ts_sum(log(1 + returns), k) is the composite issuance of Daniel-Titman; the minus sign shorts issuers and buys repurchasers; group_rank by country compares firms within their own market and currency"
+ },
+ {
+  "expression": "group_rank(add(ts_sum(ts_delay(returns, 231), 21), ts_sum(ts_delay(returns, 483), 21), ts_sum(ts_delay(returns, 735), 21), ts_sum(ts_delay(returns, 987), 21), ts_sum(ts_delay(returns, 1239), 21), filter=true), country)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "stocks tend to outperform in the same calendar month in which they outperformed in earlier years (earnings announcement timing, fiscal-year flows and recurring demand): the next month's return in each of the last five years predicts this year's.",
+  "rationale_data": "returns (price-volume data, every region)",
+  "rationale_operators": "ts_sum(ts_delay(returns, 231 + 252k), 21) is the return over the coming month k+1 years ago; add(..., filter=true) averages the five years and keeps stocks with shorter histories; group_rank by country"
+ },
+ {
+  "expression": "group_rank(ts_mean(if_else(open > ts_delay(close, 1), if_else(close < open, 1, 0), 0), 21) / ts_mean(ts_mean(if_else(open > ts_delay(close, 1), if_else(close < open, 1, 0), 0), 21), 252), country)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "a month with many days of overnight gains followed by daytime losses is a tug of war between overnight noise traders and daytime arbitrageurs; the arbitrageurs over-correct a persistent overnight price pressure, so the most intense tug of war predicts higher returns.",
+  "rationale_data": "open and close (price-volume data, every region): the overnight return is open over the previous close, the daytime return close over open",
+  "rationale_operators": "if_else marks days with a positive overnight and a negative daytime return; ts_mean over 21 days is the month's frequency, divided by its own 12-month average as in the paper; rank orders stocks; group_rank by country"
+ },
+ {
+  "expression": "group_rank(ts_mean(volume, 5) / ts_mean(ts_delay(volume, 5), 50), country)",
+  "neutralization": "INDUSTRY",
+  "decay": 6,
+  "idea": "a week of unusually high trading volume makes a stock more visible to investors (Merton's investor recognition), which raises demand and returns over the following month; the premium exists in 41 countries.",
+  "rationale_data": "volume (price-volume data, every region)",
+  "rationale_operators": "ts_mean(volume, 5) over the 50 days before it measures abnormal weekly volume; group_rank by country; decay 6 holds the position for about a month"
+ }
+]

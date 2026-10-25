@@ -1,0 +1,82 @@
+[
+ {
+  "expression": "-rank(log(cap / ts_delay(cap, 252)) - ts_sum(log(1 + returns), 252))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "firms issue shares when they are overvalued and buy them back when undervalued; investors under-react to these managerial signals, so net issuers underperform and repurchasers outperform for years (one-year window, Pontiff-Woodgate horizon).",
+  "rationale_data": "cap and returns (price-volume data, every region): market value growth not explained by returns is net issuance minus payouts",
+  "rationale_operators": "log(cap / ts_delay(cap, k)) - ts_sum(log(1 + returns), k) is the composite issuance of Daniel-Titman; the minus sign shorts issuers and buys repurchasers"
+ },
+ {
+  "expression": "-rank(log(cap / ts_delay(cap, 1260)) - ts_sum(log(1 + returns), 1260))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "firms issue shares when they are overvalued and buy them back when undervalued; investors under-react to these managerial signals, so net issuers underperform and repurchasers outperform for years (five-year window, Daniel-Titman horizon; FIN uses both).",
+  "rationale_data": "cap and returns (price-volume data, every region): market value growth not explained by returns is net issuance minus payouts",
+  "rationale_operators": "log(cap / ts_delay(cap, k)) - ts_sum(log(1 + returns), k) is the composite issuance of Daniel-Titman; the minus sign shorts issuers and buys repurchasers"
+ },
+ {
+  "expression": "rank(add(ts_sum(ts_delay(returns, 231), 21), ts_sum(ts_delay(returns, 483), 21), ts_sum(ts_delay(returns, 735), 21), ts_sum(ts_delay(returns, 987), 21), ts_sum(ts_delay(returns, 1239), 21), filter=true))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "stocks tend to outperform in the same calendar month in which they outperformed in earlier years (earnings announcement timing, fiscal-year flows and recurring demand): the next month's return in each of the last five years predicts this year's.",
+  "rationale_data": "returns (price-volume data, every region)",
+  "rationale_operators": "ts_sum(ts_delay(returns, 231 + 252k), 21) is the return over the coming month k+1 years ago; add(..., filter=true) averages the five years and keeps stocks with shorter histories"
+ },
+ {
+  "expression": "rank(ts_mean(if_else(open > ts_delay(close, 1), if_else(close < open, 1, 0), 0), 21) / ts_mean(ts_mean(if_else(open > ts_delay(close, 1), if_else(close < open, 1, 0), 0), 21), 252))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "a month with many days of overnight gains followed by daytime losses is a tug of war between overnight noise traders and daytime arbitrageurs; the arbitrageurs over-correct a persistent overnight price pressure, so the most intense tug of war predicts higher returns.",
+  "rationale_data": "open and close (price-volume data, every region): the overnight return is open over the previous close, the daytime return close over open",
+  "rationale_operators": "if_else marks days with a positive overnight and a negative daytime return; ts_mean over 21 days is the month's frequency, divided by its own 12-month average as in the paper; rank orders stocks"
+ },
+ {
+  "expression": "group_rank(ts_backfill(mean_estimate_targetprice_annual12_tribes, 63) / close, industry)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "analysts' target-price-implied returns are informative relative to industry peers: ranking target price over price within an industry removes analysts' industry-wide optimism and keeps their relative valuation.",
+  "rationale_data": "consensus analyst target price and the close price",
+  "rationale_operators": "ts_backfill(target, 63) / close is the implied return; group_rank within the industry"
+ },
+ {
+  "expression": "group_rank(ts_backfill(avg_first_biasfree_price_target_estimate, 63) / close, industry)",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "the same relative valuation with the vendor's bias-free target price, which removes each analyst's systematic optimism before averaging.",
+  "rationale_data": "bias-free average price target and the close price",
+  "rationale_operators": "ts_backfill(target, 63) / close ranked within the industry"
+ },
+ {
+  "expression": "rank(ts_backfill(count_positive_bold_estimates_fy1, 63) - ts_backfill(count_negative_bold_estimates_fy1, 63))",
+  "neutralization": "INDUSTRY",
+  "decay": 4,
+  "idea": "investors fail to separate bold revisions (away from consensus, new information) from herding ones; the drift after bold upward minus bold downward revisions is the under-priced part of analysts' news.",
+  "rationale_data": "counts of positive and negative bold FY1 earnings estimates",
+  "rationale_operators": "ts_backfill carries the counts over a quarter; rank of their difference"
+ },
+ {
+  "expression": "-rank(ts_std_dev(ts_backfill((opt3_volcallatm + opt3_volputatm) / 2, 5), 21) / ts_mean(ts_backfill((opt3_volcallatm + opt3_volputatm) / 2, 5), 21))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "uncertainty about risk is disliked: stocks whose implied volatility itself is volatile (high vol-of-vol) underperform those with stable implied volatility, by about 8% a year in the U.S. and Europe.",
+  "rationale_data": "at-the-money call and put implied volatility (opt3, used in submitted composites #493 / #499)",
+  "rationale_operators": "ts_std_dev over ts_mean of the 21-day ATM implied volatility is its coefficient of variation; ts_backfill(\u2026, 5) bridges missing days; the minus sign shorts high vol-of-vol"
+ },
+ {
+  "expression": "-rank(ts_std_dev(ts_backfill(atm_call_volatility_30d_long_term_2, 5), 21) / ts_mean(ts_backfill(atm_call_volatility_30d_long_term_2, 5), 21))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "the same vol-of-vol on the 30-day at-the-money call volatility of the option horizon dataset, whose fields few BRAIN alphas use.",
+  "rationale_data": "30-day at-the-money call implied volatility (option horizon decomposition)",
+  "rationale_operators": "coefficient of variation of the 21-day implied volatility; the minus sign shorts high vol-of-vol"
+ },
+ {
+  "expression": "rank(ts_sum(if_else(vec_count(nws18_ssc) > 0, returns, 0), 5))",
+  "neutralization": "SUBINDUSTRY",
+  "decay": 4,
+  "idea": "prices under-react to firm news: the return on days with news keeps drifting in the same direction for several days, without reversal, more so when investors are distracted.",
+  "rationale_data": "returns and the RavenPack story vector (nws18_ssc: one entry per story)",
+  "rationale_operators": "if_else keeps the returns of days with at least one story; ts_sum over 5 days; returns of no-news days, which reverse, are left out"
+ }
+]
