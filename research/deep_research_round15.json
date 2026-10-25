@@ -1,0 +1,2494 @@
+{
+ "_meta": {
+  "title": "Deep research round 15: research-backed probes for USA, EUR and GLB (25 Oct 2026)",
+  "how_to_run": [
+   "python3 -m p2a sync --no-docs  (and once per scope: --region EUR --universe TOP2500, --region GLB --universe MINVOL1M)",
+   "python3 -m p2a try --file research/deep_research_round15.json --route regular --no-sim   # dry run: role fills, validation",
+   "python3 -m p2a try --file research/deep_research_round15.json --route regular             # all regions, simulate",
+   "python3 -m p2a try --file research/deep_research_round15.json --route regular --region EUR  # one region"
+  ],
+  "format": "Each probe names its region / universe / delay. {name} slots are filled from that scope's live catalog by the probe's own 'roles' specs (ids first, then description patterns) or the roles of research/mechanisms.yaml; a probe whose role finds no field is skipped. Keys the engine does not read (id, theme, fields, risk, papers, evidence, sources) document the research.",
+  "verification": "Expressions passed the engine's static analyzer offline (operators, arity, types) with the operator catalog; field ids marked verified come from this repo's earlier probes and notes; roles are unverified until the dry run shows their fills. Paper facts in 'evidence' were checked with web searches on 25 Oct 2026 unless marked 'from memory'. Nothing here has been simulated.",
+  "not_included": "MAX/lottery (ts_max does not exist on this account; also a low-volatility tilt); price delay (an illiquidity effect); Stambaugh-Yuan MGMT/PERF factors (a replication thesis found them failing in 88 markets); ideas already measured on this account in rounds 1-14 (FINDINGS.md).",
+  "count": 45
+ },
+ "probes": [
+  {
+   "id": "usa_composite_issuance_1y",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "issuance",
+   "expression": "-rank(log(cap / ts_delay(cap, 252)) - ts_sum(log(1 + returns), 252))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "firms issue shares when they are overvalued and buy them back when undervalued; investors under-react to these managerial signals, so net issuers underperform and repurchasers outperform for years (one-year window, Pontiff-Woodgate horizon).",
+   "rationale_data": "cap and returns (price-volume data, every region): market value growth not explained by returns is net issuance minus payouts",
+   "rationale_operators": "log(cap / ts_delay(cap, k)) - ts_sum(log(1 + returns), k) is the composite issuance of Daniel-Titman; the minus sign shorts issuers and buys repurchasers",
+   "fields": "universal price-volume fields",
+   "risk": "USA issuance is a known factor (model23 net equity issuance reached 0.75 in round 1): watch production correlation",
+   "papers": [
+    "Pontiff and Woodgate (2008) 'Share Issuance and Cross-sectional Returns', Journal of Finance 63(2)",
+    "McLean, Pontiff and Watanabe (2009) 'Share issuance and cross-sectional returns: International evidence', Journal of Financial Economics 94(1) 1-17",
+    "Daniel and Titman (2006) 'Market Reactions to Tangible and Intangible Information', Journal of Finance 61(4) (composite equity issuance)",
+    "Daniel, Hirshleifer and Sun (2020) 'Short- and Long-Horizon Behavioral Factors', Review of Financial Studies 33(4) 1673-1736 (FIN factor)",
+    "Manconi, Peyer and Vermaelen (2019) 'Are Buybacks Good for Long-Term Shareholder Value? Evidence from Buybacks around the World', JFQA 54(5) 1899-1935 (2019 Sharpe best paper award)"
+   ],
+   "evidence": "41 non-U.S. countries: issuance predicts returns more significantly than size or momentum, for small and large firms, driven by weak returns after issuance (McLean et al. 2009). Buyback announcements in 31 non-U.S. countries earn positive long-run excess returns (Manconi et al. 2019). FIN is one of two behavioral factors that explain a broad set of anomalies (Daniel et al. 2020).",
+   "sources": [
+    "https://ideas.repec.org/a/eee/jfinec/v94y2009i1p1-17.html",
+    "https://jfqa.org/?p=3373",
+    "https://ideas.repec.org/a/oup/rfinst/v33y2020i4p1673-1736..html"
+   ]
+  },
+  {
+   "id": "usa_composite_issuance_5y",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "issuance",
+   "expression": "-rank(log(cap / ts_delay(cap, 1260)) - ts_sum(log(1 + returns), 1260))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "firms issue shares when they are overvalued and buy them back when undervalued; investors under-react to these managerial signals, so net issuers underperform and repurchasers outperform for years (five-year window, Daniel-Titman horizon; FIN uses both).",
+   "rationale_data": "cap and returns (price-volume data, every region): market value growth not explained by returns is net issuance minus payouts",
+   "rationale_operators": "log(cap / ts_delay(cap, k)) - ts_sum(log(1 + returns), k) is the composite issuance of Daniel-Titman; the minus sign shorts issuers and buys repurchasers",
+   "fields": "universal price-volume fields",
+   "papers": [
+    "Pontiff and Woodgate (2008) 'Share Issuance and Cross-sectional Returns', Journal of Finance 63(2)",
+    "McLean, Pontiff and Watanabe (2009) 'Share issuance and cross-sectional returns: International evidence', Journal of Financial Economics 94(1) 1-17",
+    "Daniel and Titman (2006) 'Market Reactions to Tangible and Intangible Information', Journal of Finance 61(4) (composite equity issuance)",
+    "Daniel, Hirshleifer and Sun (2020) 'Short- and Long-Horizon Behavioral Factors', Review of Financial Studies 33(4) 1673-1736 (FIN factor)",
+    "Manconi, Peyer and Vermaelen (2019) 'Are Buybacks Good for Long-Term Shareholder Value? Evidence from Buybacks around the World', JFQA 54(5) 1899-1935 (2019 Sharpe best paper award)"
+   ],
+   "evidence": "41 non-U.S. countries: issuance predicts returns more significantly than size or momentum, for small and large firms, driven by weak returns after issuance (McLean et al. 2009). Buyback announcements in 31 non-U.S. countries earn positive long-run excess returns (Manconi et al. 2019). FIN is one of two behavioral factors that explain a broad set of anomalies (Daniel et al. 2020).",
+   "sources": [
+    "https://ideas.repec.org/a/eee/jfinec/v94y2009i1p1-17.html",
+    "https://jfqa.org/?p=3373",
+    "https://ideas.repec.org/a/oup/rfinst/v33y2020i4p1673-1736..html"
+   ]
+  },
+  {
+   "id": "eur_composite_issuance_1y",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "issuance",
+   "expression": "-group_rank(log(cap / ts_delay(cap, 252)) - ts_sum(log(1 + returns), 252), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "firms issue shares when they are overvalued and buy them back when undervalued; investors under-react to these managerial signals, so net issuers underperform and repurchasers outperform for years (one-year window, Pontiff-Woodgate horizon).",
+   "rationale_data": "cap and returns (price-volume data, every region): market value growth not explained by returns is net issuance minus payouts",
+   "rationale_operators": "log(cap / ts_delay(cap, k)) - ts_sum(log(1 + returns), k) is the composite issuance of Daniel-Titman; the minus sign shorts issuers and buys repurchasers; group_rank by country compares firms within their own market and currency",
+   "fields": "universal price-volume fields",
+   "risk": "USA issuance is a known factor (model23 net equity issuance reached 0.75 in round 1): watch production correlation",
+   "papers": [
+    "Pontiff and Woodgate (2008) 'Share Issuance and Cross-sectional Returns', Journal of Finance 63(2)",
+    "McLean, Pontiff and Watanabe (2009) 'Share issuance and cross-sectional returns: International evidence', Journal of Financial Economics 94(1) 1-17",
+    "Daniel and Titman (2006) 'Market Reactions to Tangible and Intangible Information', Journal of Finance 61(4) (composite equity issuance)",
+    "Daniel, Hirshleifer and Sun (2020) 'Short- and Long-Horizon Behavioral Factors', Review of Financial Studies 33(4) 1673-1736 (FIN factor)",
+    "Manconi, Peyer and Vermaelen (2019) 'Are Buybacks Good for Long-Term Shareholder Value? Evidence from Buybacks around the World', JFQA 54(5) 1899-1935 (2019 Sharpe best paper award)"
+   ],
+   "evidence": "41 non-U.S. countries: issuance predicts returns more significantly than size or momentum, for small and large firms, driven by weak returns after issuance (McLean et al. 2009). Buyback announcements in 31 non-U.S. countries earn positive long-run excess returns (Manconi et al. 2019). FIN is one of two behavioral factors that explain a broad set of anomalies (Daniel et al. 2020).",
+   "sources": [
+    "https://ideas.repec.org/a/eee/jfinec/v94y2009i1p1-17.html",
+    "https://jfqa.org/?p=3373",
+    "https://ideas.repec.org/a/oup/rfinst/v33y2020i4p1673-1736..html"
+   ]
+  },
+  {
+   "id": "eur_composite_issuance_5y",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "issuance",
+   "expression": "-group_rank(log(cap / ts_delay(cap, 1260)) - ts_sum(log(1 + returns), 1260), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "firms issue shares when they are overvalued and buy them back when undervalued; investors under-react to these managerial signals, so net issuers underperform and repurchasers outperform for years (five-year window, Daniel-Titman horizon; FIN uses both).",
+   "rationale_data": "cap and returns (price-volume data, every region): market value growth not explained by returns is net issuance minus payouts",
+   "rationale_operators": "log(cap / ts_delay(cap, k)) - ts_sum(log(1 + returns), k) is the composite issuance of Daniel-Titman; the minus sign shorts issuers and buys repurchasers; group_rank by country compares firms within their own market and currency",
+   "fields": "universal price-volume fields",
+   "papers": [
+    "Pontiff and Woodgate (2008) 'Share Issuance and Cross-sectional Returns', Journal of Finance 63(2)",
+    "McLean, Pontiff and Watanabe (2009) 'Share issuance and cross-sectional returns: International evidence', Journal of Financial Economics 94(1) 1-17",
+    "Daniel and Titman (2006) 'Market Reactions to Tangible and Intangible Information', Journal of Finance 61(4) (composite equity issuance)",
+    "Daniel, Hirshleifer and Sun (2020) 'Short- and Long-Horizon Behavioral Factors', Review of Financial Studies 33(4) 1673-1736 (FIN factor)",
+    "Manconi, Peyer and Vermaelen (2019) 'Are Buybacks Good for Long-Term Shareholder Value? Evidence from Buybacks around the World', JFQA 54(5) 1899-1935 (2019 Sharpe best paper award)"
+   ],
+   "evidence": "41 non-U.S. countries: issuance predicts returns more significantly than size or momentum, for small and large firms, driven by weak returns after issuance (McLean et al. 2009). Buyback announcements in 31 non-U.S. countries earn positive long-run excess returns (Manconi et al. 2019). FIN is one of two behavioral factors that explain a broad set of anomalies (Daniel et al. 2020).",
+   "sources": [
+    "https://ideas.repec.org/a/eee/jfinec/v94y2009i1p1-17.html",
+    "https://jfqa.org/?p=3373",
+    "https://ideas.repec.org/a/oup/rfinst/v33y2020i4p1673-1736..html"
+   ]
+  },
+  {
+   "id": "glb_composite_issuance_1y",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "issuance",
+   "expression": "-group_rank(log(cap / ts_delay(cap, 252)) - ts_sum(log(1 + returns), 252), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "firms issue shares when they are overvalued and buy them back when undervalued; investors under-react to these managerial signals, so net issuers underperform and repurchasers outperform for years (one-year window, Pontiff-Woodgate horizon).",
+   "rationale_data": "cap and returns (price-volume data, every region): market value growth not explained by returns is net issuance minus payouts",
+   "rationale_operators": "log(cap / ts_delay(cap, k)) - ts_sum(log(1 + returns), k) is the composite issuance of Daniel-Titman; the minus sign shorts issuers and buys repurchasers; group_rank by country compares firms within their own market and currency",
+   "fields": "universal price-volume fields",
+   "risk": "USA issuance is a known factor (model23 net equity issuance reached 0.75 in round 1): watch production correlation",
+   "papers": [
+    "Pontiff and Woodgate (2008) 'Share Issuance and Cross-sectional Returns', Journal of Finance 63(2)",
+    "McLean, Pontiff and Watanabe (2009) 'Share issuance and cross-sectional returns: International evidence', Journal of Financial Economics 94(1) 1-17",
+    "Daniel and Titman (2006) 'Market Reactions to Tangible and Intangible Information', Journal of Finance 61(4) (composite equity issuance)",
+    "Daniel, Hirshleifer and Sun (2020) 'Short- and Long-Horizon Behavioral Factors', Review of Financial Studies 33(4) 1673-1736 (FIN factor)",
+    "Manconi, Peyer and Vermaelen (2019) 'Are Buybacks Good for Long-Term Shareholder Value? Evidence from Buybacks around the World', JFQA 54(5) 1899-1935 (2019 Sharpe best paper award)"
+   ],
+   "evidence": "41 non-U.S. countries: issuance predicts returns more significantly than size or momentum, for small and large firms, driven by weak returns after issuance (McLean et al. 2009). Buyback announcements in 31 non-U.S. countries earn positive long-run excess returns (Manconi et al. 2019). FIN is one of two behavioral factors that explain a broad set of anomalies (Daniel et al. 2020).",
+   "sources": [
+    "https://ideas.repec.org/a/eee/jfinec/v94y2009i1p1-17.html",
+    "https://jfqa.org/?p=3373",
+    "https://ideas.repec.org/a/oup/rfinst/v33y2020i4p1673-1736..html"
+   ]
+  },
+  {
+   "id": "glb_composite_issuance_5y",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "issuance",
+   "expression": "-group_rank(log(cap / ts_delay(cap, 1260)) - ts_sum(log(1 + returns), 1260), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "firms issue shares when they are overvalued and buy them back when undervalued; investors under-react to these managerial signals, so net issuers underperform and repurchasers outperform for years (five-year window, Daniel-Titman horizon; FIN uses both).",
+   "rationale_data": "cap and returns (price-volume data, every region): market value growth not explained by returns is net issuance minus payouts",
+   "rationale_operators": "log(cap / ts_delay(cap, k)) - ts_sum(log(1 + returns), k) is the composite issuance of Daniel-Titman; the minus sign shorts issuers and buys repurchasers; group_rank by country compares firms within their own market and currency",
+   "fields": "universal price-volume fields",
+   "papers": [
+    "Pontiff and Woodgate (2008) 'Share Issuance and Cross-sectional Returns', Journal of Finance 63(2)",
+    "McLean, Pontiff and Watanabe (2009) 'Share issuance and cross-sectional returns: International evidence', Journal of Financial Economics 94(1) 1-17",
+    "Daniel and Titman (2006) 'Market Reactions to Tangible and Intangible Information', Journal of Finance 61(4) (composite equity issuance)",
+    "Daniel, Hirshleifer and Sun (2020) 'Short- and Long-Horizon Behavioral Factors', Review of Financial Studies 33(4) 1673-1736 (FIN factor)",
+    "Manconi, Peyer and Vermaelen (2019) 'Are Buybacks Good for Long-Term Shareholder Value? Evidence from Buybacks around the World', JFQA 54(5) 1899-1935 (2019 Sharpe best paper award)"
+   ],
+   "evidence": "41 non-U.S. countries: issuance predicts returns more significantly than size or momentum, for small and large firms, driven by weak returns after issuance (McLean et al. 2009). Buyback announcements in 31 non-U.S. countries earn positive long-run excess returns (Manconi et al. 2019). FIN is one of two behavioral factors that explain a broad set of anomalies (Daniel et al. 2020).",
+   "sources": [
+    "https://ideas.repec.org/a/eee/jfinec/v94y2009i1p1-17.html",
+    "https://jfqa.org/?p=3373",
+    "https://ideas.repec.org/a/oup/rfinst/v33y2020i4p1673-1736..html"
+   ]
+  },
+  {
+   "id": "usa_return_seasonality",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "seasonality",
+   "expression": "rank(add(ts_sum(ts_delay(returns, 231), 21), ts_sum(ts_delay(returns, 483), 21), ts_sum(ts_delay(returns, 735), 21), ts_sum(ts_delay(returns, 987), 21), ts_sum(ts_delay(returns, 1239), 21), filter=true))",
+   "neutralization": "SUBINDUSTRY",
+   "decay": 4,
+   "idea": "stocks tend to outperform in the same calendar month in which they outperformed in earlier years (earnings announcement timing, fiscal-year flows and recurring demand): the next month's return in each of the last five years predicts this year's.",
+   "rationale_data": "returns (price-volume data, every region)",
+   "rationale_operators": "ts_sum(ts_delay(returns, 231 + 252k), 21) is the return over the coming month k+1 years ago; add(..., filter=true) averages the five years and keeps stocks with shorter histories",
+   "fields": "universal price-volume fields",
+   "risk": "price-based: check the reference-factor screen; KLN find seasonalities linked to other anomalies",
+   "papers": [
+    "Heston and Sadka (2008) 'Seasonality in the cross-section of stock returns', Journal of Financial Economics 87(2)",
+    "Heston and Sadka (2010) 'Seasonality in the Cross Section of Stock Returns: The International Evidence', JFQA 45(5) 1133-1160",
+    "Keloharju, Linnainmaa and Nyberg (2016) 'Return Seasonalities', Journal of Finance 71(4) 1557-1590"
+   ],
+   "evidence": "Stocks that beat the market in a calendar month keep beating it in that month for up to 5 years in 14 developed markets (Canada, Japan and 12 European countries); global seasonal strategies beat non-seasonal ones by over 1%/month and are weakly correlated across countries (Heston-Sadka 2010). Same-calendar-month selection earns about 13%/year in the U.S. (Keloharju et al. 2016). A 42-market extension finds the effect mainly in advanced markets.",
+   "sources": [
+    "https://ideas.repec.org/a/cup/jfinqa/v45y2010i05p1133-1160_00.html",
+    "https://www.nber.org/papers/w20815.pdf"
+   ]
+  },
+  {
+   "id": "usa_tug_of_war",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "tug_of_war",
+   "expression": "rank(ts_mean(if_else(open > ts_delay(close, 1), if_else(close < open, 1, 0), 0), 21) / ts_mean(ts_mean(if_else(open > ts_delay(close, 1), if_else(close < open, 1, 0), 0), 21), 252))",
+   "neutralization": "SUBINDUSTRY",
+   "decay": 4,
+   "idea": "a month with many days of overnight gains followed by daytime losses is a tug of war between overnight noise traders and daytime arbitrageurs; the arbitrageurs over-correct a persistent overnight price pressure, so the most intense tug of war predicts higher returns.",
+   "rationale_data": "open and close (price-volume data, every region): the overnight return is open over the previous close, the daytime return close over open",
+   "rationale_operators": "if_else marks days with a positive overnight and a negative daytime return; ts_mean over 21 days is the month's frequency, divided by its own 12-month average as in the paper; rank orders stocks",
+   "fields": "universal price-volume fields",
+   "risk": "U.S. evidence only; dividends and splits create overnight gaps",
+   "papers": [
+    "Akbas, Boehmer, Jiang and Koch (2022) 'Overnight returns, daytime reversals, and future stock returns', Journal of Financial Economics 145(3) 850-875",
+    "Lou, Polk and Skouras (2019) 'A tug of war: Overnight versus intraday expected returns', Journal of Financial Economics 134(1) 192-213"
+   ],
+   "evidence": "A month with frequent positive overnight returns followed by daytime reversals (noise traders overnight, arbitrageurs by day) predicts higher future returns: daytime arbitrageurs over-correct (Akbas et al.). Overnight/intraday return components behave persistently differently, strongest in large, high-price stocks (Lou et al.). Evidence is U.S.; EUR/GLB are untested ports with universal price fields.",
+   "sources": [
+    "https://ideas.repec.org/a/eee/jfinec/v145y2022i3p850-875.html",
+    "https://researchonline.lse.ac.uk/id/eprint/87481"
+   ]
+  },
+  {
+   "id": "eur_return_seasonality",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "seasonality",
+   "expression": "group_rank(add(ts_sum(ts_delay(returns, 231), 21), ts_sum(ts_delay(returns, 483), 21), ts_sum(ts_delay(returns, 735), 21), ts_sum(ts_delay(returns, 987), 21), ts_sum(ts_delay(returns, 1239), 21), filter=true), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "stocks tend to outperform in the same calendar month in which they outperformed in earlier years (earnings announcement timing, fiscal-year flows and recurring demand): the next month's return in each of the last five years predicts this year's.",
+   "rationale_data": "returns (price-volume data, every region)",
+   "rationale_operators": "ts_sum(ts_delay(returns, 231 + 252k), 21) is the return over the coming month k+1 years ago; add(..., filter=true) averages the five years and keeps stocks with shorter histories; group_rank by country",
+   "fields": "universal price-volume fields",
+   "risk": "price-based: check the reference-factor screen; KLN find seasonalities linked to other anomalies",
+   "papers": [
+    "Heston and Sadka (2008) 'Seasonality in the cross-section of stock returns', Journal of Financial Economics 87(2)",
+    "Heston and Sadka (2010) 'Seasonality in the Cross Section of Stock Returns: The International Evidence', JFQA 45(5) 1133-1160",
+    "Keloharju, Linnainmaa and Nyberg (2016) 'Return Seasonalities', Journal of Finance 71(4) 1557-1590"
+   ],
+   "evidence": "Stocks that beat the market in a calendar month keep beating it in that month for up to 5 years in 14 developed markets (Canada, Japan and 12 European countries); global seasonal strategies beat non-seasonal ones by over 1%/month and are weakly correlated across countries (Heston-Sadka 2010). Same-calendar-month selection earns about 13%/year in the U.S. (Keloharju et al. 2016). A 42-market extension finds the effect mainly in advanced markets.",
+   "sources": [
+    "https://ideas.repec.org/a/cup/jfinqa/v45y2010i05p1133-1160_00.html",
+    "https://www.nber.org/papers/w20815.pdf"
+   ]
+  },
+  {
+   "id": "eur_tug_of_war",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "tug_of_war",
+   "expression": "group_rank(ts_mean(if_else(open > ts_delay(close, 1), if_else(close < open, 1, 0), 0), 21) / ts_mean(ts_mean(if_else(open > ts_delay(close, 1), if_else(close < open, 1, 0), 0), 21), 252), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "a month with many days of overnight gains followed by daytime losses is a tug of war between overnight noise traders and daytime arbitrageurs; the arbitrageurs over-correct a persistent overnight price pressure, so the most intense tug of war predicts higher returns.",
+   "rationale_data": "open and close (price-volume data, every region): the overnight return is open over the previous close, the daytime return close over open",
+   "rationale_operators": "if_else marks days with a positive overnight and a negative daytime return; ts_mean over 21 days is the month's frequency, divided by its own 12-month average as in the paper; rank orders stocks; group_rank by country",
+   "fields": "universal price-volume fields",
+   "risk": "U.S. evidence only; dividends and splits create overnight gaps",
+   "papers": [
+    "Akbas, Boehmer, Jiang and Koch (2022) 'Overnight returns, daytime reversals, and future stock returns', Journal of Financial Economics 145(3) 850-875",
+    "Lou, Polk and Skouras (2019) 'A tug of war: Overnight versus intraday expected returns', Journal of Financial Economics 134(1) 192-213"
+   ],
+   "evidence": "A month with frequent positive overnight returns followed by daytime reversals (noise traders overnight, arbitrageurs by day) predicts higher future returns: daytime arbitrageurs over-correct (Akbas et al.). Overnight/intraday return components behave persistently differently, strongest in large, high-price stocks (Lou et al.). Evidence is U.S.; EUR/GLB are untested ports with universal price fields.",
+   "sources": [
+    "https://ideas.repec.org/a/eee/jfinec/v145y2022i3p850-875.html",
+    "https://researchonline.lse.ac.uk/id/eprint/87481"
+   ]
+  },
+  {
+   "id": "glb_return_seasonality",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "seasonality",
+   "expression": "group_rank(add(ts_sum(ts_delay(returns, 231), 21), ts_sum(ts_delay(returns, 483), 21), ts_sum(ts_delay(returns, 735), 21), ts_sum(ts_delay(returns, 987), 21), ts_sum(ts_delay(returns, 1239), 21), filter=true), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "stocks tend to outperform in the same calendar month in which they outperformed in earlier years (earnings announcement timing, fiscal-year flows and recurring demand): the next month's return in each of the last five years predicts this year's.",
+   "rationale_data": "returns (price-volume data, every region)",
+   "rationale_operators": "ts_sum(ts_delay(returns, 231 + 252k), 21) is the return over the coming month k+1 years ago; add(..., filter=true) averages the five years and keeps stocks with shorter histories; group_rank by country",
+   "fields": "universal price-volume fields",
+   "risk": "price-based: check the reference-factor screen; KLN find seasonalities linked to other anomalies",
+   "papers": [
+    "Heston and Sadka (2008) 'Seasonality in the cross-section of stock returns', Journal of Financial Economics 87(2)",
+    "Heston and Sadka (2010) 'Seasonality in the Cross Section of Stock Returns: The International Evidence', JFQA 45(5) 1133-1160",
+    "Keloharju, Linnainmaa and Nyberg (2016) 'Return Seasonalities', Journal of Finance 71(4) 1557-1590"
+   ],
+   "evidence": "Stocks that beat the market in a calendar month keep beating it in that month for up to 5 years in 14 developed markets (Canada, Japan and 12 European countries); global seasonal strategies beat non-seasonal ones by over 1%/month and are weakly correlated across countries (Heston-Sadka 2010). Same-calendar-month selection earns about 13%/year in the U.S. (Keloharju et al. 2016). A 42-market extension finds the effect mainly in advanced markets.",
+   "sources": [
+    "https://ideas.repec.org/a/cup/jfinqa/v45y2010i05p1133-1160_00.html",
+    "https://www.nber.org/papers/w20815.pdf"
+   ]
+  },
+  {
+   "id": "glb_tug_of_war",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "tug_of_war",
+   "expression": "group_rank(ts_mean(if_else(open > ts_delay(close, 1), if_else(close < open, 1, 0), 0), 21) / ts_mean(ts_mean(if_else(open > ts_delay(close, 1), if_else(close < open, 1, 0), 0), 21), 252), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "a month with many days of overnight gains followed by daytime losses is a tug of war between overnight noise traders and daytime arbitrageurs; the arbitrageurs over-correct a persistent overnight price pressure, so the most intense tug of war predicts higher returns.",
+   "rationale_data": "open and close (price-volume data, every region): the overnight return is open over the previous close, the daytime return close over open",
+   "rationale_operators": "if_else marks days with a positive overnight and a negative daytime return; ts_mean over 21 days is the month's frequency, divided by its own 12-month average as in the paper; rank orders stocks; group_rank by country",
+   "fields": "universal price-volume fields",
+   "risk": "U.S. evidence only; dividends and splits create overnight gaps",
+   "papers": [
+    "Akbas, Boehmer, Jiang and Koch (2022) 'Overnight returns, daytime reversals, and future stock returns', Journal of Financial Economics 145(3) 850-875",
+    "Lou, Polk and Skouras (2019) 'A tug of war: Overnight versus intraday expected returns', Journal of Financial Economics 134(1) 192-213"
+   ],
+   "evidence": "A month with frequent positive overnight returns followed by daytime reversals (noise traders overnight, arbitrageurs by day) predicts higher future returns: daytime arbitrageurs over-correct (Akbas et al.). Overnight/intraday return components behave persistently differently, strongest in large, high-price stocks (Lou et al.). Evidence is U.S.; EUR/GLB are untested ports with universal price fields.",
+   "sources": [
+    "https://ideas.repec.org/a/eee/jfinec/v145y2022i3p850-875.html",
+    "https://researchonline.lse.ac.uk/id/eprint/87481"
+   ]
+  },
+  {
+   "id": "eur_high_volume_premium",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "high_volume",
+   "expression": "group_rank(ts_mean(volume, 5) / ts_mean(ts_delay(volume, 5), 50), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 6,
+   "idea": "a week of unusually high trading volume makes a stock more visible to investors (Merton's investor recognition), which raises demand and returns over the following month; the premium exists in 41 countries.",
+   "rationale_data": "volume (price-volume data, every region)",
+   "rationale_operators": "ts_mean(volume, 5) over the 50 days before it measures abnormal weekly volume; group_rank by country; decay 6 holds the position for about a month",
+   "fields": "universal price-volume fields",
+   "papers": [
+    "Kaniel, Ozoguz and Starks (2012) 'The high volume return premium: Cross-country evidence', Journal of Financial Economics 103(2) 255-279",
+    "Gervais, Kaniel and Mingelgrin (2001) 'The High-Volume Return Premium', Journal of Finance 56(3)"
+   ],
+   "evidence": "Stocks with unusually high trading volume over a week earn higher returns over the next month in 41 developed and emerging countries; not explained by risk or liquidity, larger where visibility changes more (investor recognition). On this account the U.S. version failed (round 8), so it is tried in EUR and GLB only.",
+   "sources": [
+    "https://ideas.repec.org/a/eee/jfinec/v103y2012i2p255-279.html"
+   ]
+  },
+  {
+   "id": "glb_high_volume_premium",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "high_volume",
+   "expression": "group_rank(ts_mean(volume, 5) / ts_mean(ts_delay(volume, 5), 50), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 6,
+   "idea": "a week of unusually high trading volume makes a stock more visible to investors (Merton's investor recognition), which raises demand and returns over the following month; the premium exists in 41 countries.",
+   "rationale_data": "volume (price-volume data, every region)",
+   "rationale_operators": "ts_mean(volume, 5) over the 50 days before it measures abnormal weekly volume; group_rank by country; decay 6 holds the position for about a month",
+   "fields": "universal price-volume fields",
+   "papers": [
+    "Kaniel, Ozoguz and Starks (2012) 'The high volume return premium: Cross-country evidence', Journal of Financial Economics 103(2) 255-279",
+    "Gervais, Kaniel and Mingelgrin (2001) 'The High-Volume Return Premium', Journal of Finance 56(3)"
+   ],
+   "evidence": "Stocks with unusually high trading volume over a week earn higher returns over the next month in 41 developed and emerging countries; not explained by risk or liquidity, larger where visibility changes more (investor recognition). On this account the U.S. version failed (round 8), so it is tried in EUR and GLB only.",
+   "sources": [
+    "https://ideas.repec.org/a/eee/jfinec/v103y2012i2p255-279.html"
+   ]
+  },
+  {
+   "id": "eur_residual_momentum",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "residual_momentum",
+   "expression": "rank((ts_sum({residual_return}, 252) - ts_sum({residual_return}, 21)) / ts_std_dev({residual_return}, 252))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "momentum in firm-specific (risk-model residual) returns, skipping the last month and scaled by residual volatility: investors under-react to firm news, and the residual version avoids the factor crashes of raw momentum; it works even in Japan.",
+   "rationale_data": "the risk model's specific (residual) return",
+   "rationale_operators": "(ts_sum(r, 252) - ts_sum(r, 21)) / ts_std_dev(r, 252) is the 12-1 month residual return over its volatility",
+   "roles": {
+    "residual_return": {
+     "type": "MATRIX",
+     "patterns": [
+      "specific return",
+      "residual return",
+      "idiosyncratic return"
+     ],
+     "search": [
+      "specific_return",
+      "residual return"
+     ],
+     "exclude": [
+      "top200",
+      "top500",
+      "top1000",
+      "sp500",
+      "notliquim",
+      "crowding_top",
+      "fast_d1",
+      "volatility",
+      "variance",
+      "risk"
+     ],
+     "min_coverage": 0.7
+    }
+   },
+   "fields": "role: residual_return (coverage floor 0.7 for this region)",
+   "risk": "momentum family: check its exposure to the momentum reference factor",
+   "papers": [
+    "Blitz, Huij and Martens (2011) 'Residual momentum', Journal of Empirical Finance 18(3)",
+    "Blitz, Hanauer and Vidojevic (2020) 'The idiosyncratic momentum anomaly', International Review of Economics and Finance"
+   ],
+   "evidence": "Idiosyncratic momentum earns robust returns across developed and emerging markets, including Japan where ordinary momentum fails; not explained by crash risk; long-run dynamics fit under-reaction.",
+   "sources": [
+    "https://papers.ssrn.com/author=3570942"
+   ]
+  },
+  {
+   "id": "glb_residual_momentum",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "residual_momentum",
+   "expression": "rank((ts_sum({residual_return}, 252) - ts_sum({residual_return}, 21)) / ts_std_dev({residual_return}, 252))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "momentum in firm-specific (risk-model residual) returns, skipping the last month and scaled by residual volatility: investors under-react to firm news, and the residual version avoids the factor crashes of raw momentum; it works even in Japan.",
+   "rationale_data": "the risk model's specific (residual) return",
+   "rationale_operators": "(ts_sum(r, 252) - ts_sum(r, 21)) / ts_std_dev(r, 252) is the 12-1 month residual return over its volatility",
+   "roles": {
+    "residual_return": {
+     "type": "MATRIX",
+     "patterns": [
+      "specific return",
+      "residual return",
+      "idiosyncratic return"
+     ],
+     "search": [
+      "specific_return",
+      "residual return"
+     ],
+     "exclude": [
+      "top200",
+      "top500",
+      "top1000",
+      "sp500",
+      "notliquim",
+      "crowding_top",
+      "fast_d1",
+      "volatility",
+      "variance",
+      "risk"
+     ],
+     "min_coverage": 0.7
+    }
+   },
+   "fields": "role: residual_return (coverage floor 0.7 for this region)",
+   "risk": "momentum family: check its exposure to the momentum reference factor",
+   "papers": [
+    "Blitz, Huij and Martens (2011) 'Residual momentum', Journal of Empirical Finance 18(3)",
+    "Blitz, Hanauer and Vidojevic (2020) 'The idiosyncratic momentum anomaly', International Review of Economics and Finance"
+   ],
+   "evidence": "Idiosyncratic momentum earns robust returns across developed and emerging markets, including Japan where ordinary momentum fails; not explained by crash risk; long-run dynamics fit under-reaction.",
+   "sources": [
+    "https://papers.ssrn.com/author=3570942"
+   ]
+  },
+  {
+   "id": "usa_cash_profitability",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "profitability",
+   "expression": "rank(ts_backfill({operating_cash_flow}, 252) / ts_backfill({total_assets}, 252))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "cash-based operating profitability, which leaves accruals out, predicts returns better than accrual-based profitability and subsumes the accrual anomaly.",
+   "rationale_data": "operating cash flow and total assets (fundamental data)",
+   "rationale_operators": "cash flow from operations over total assets, carried between reports with ts_backfill",
+   "roles": {
+    "operating_cash_flow": {
+     "type": "MATRIX",
+     "ids": [
+      "cashflow_op"
+     ],
+     "patterns": [
+      "cash flows? from operat",
+      "operating activities.{0,20}net cash",
+      "net cash (provided by|from|generated) operat",
+      "cash from operat",
+      "\\boperating cash flows?\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "per share",
+      "growth",
+      "change",
+      "ratio",
+      "yield",
+      "to (sales|assets|equity|debt|price)",
+      "margin",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "free cash",
+      "average",
+      "\\bmean\\b",
+      "industry",
+      "investing",
+      "financing"
+     ],
+     "search": [
+      "operating cash flow",
+      "cash flow from operations",
+      "operating activities"
+     ],
+     "min_coverage": 0.5
+    },
+    "total_assets": {
+     "type": "MATRIX",
+     "ids": [
+      "assets"
+     ],
+     "patterns": [
+      "^total assets$",
+      "^assets - total",
+      "\\btotal assets\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "growth",
+      "change",
+      "ratio",
+      "return on",
+      "turnover",
+      "per share",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "liabilities and",
+      "average",
+      "\\bmean\\b",
+      "median",
+      "industry",
+      "sector",
+      "current assets",
+      "intangible",
+      "tangible",
+      "net assets"
+     ],
+     "prefer": [
+      "total"
+     ],
+     "search": [
+      "total assets",
+      "total_assets"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "roles: check the fills with --no-sim first",
+   "papers": [
+    "Novy-Marx (2013) 'The other side of value: The gross profitability premium', Journal of Financial Economics 108(1)",
+    "Ball, Gerakos, Linnainmaa and Nikolaev (2016) 'Accruals, cash flows, and operating profitability in the cross section of stock returns', Journal of Financial Economics 121(1)",
+    "Asness, Frazzini and Pedersen (2019) 'Quality minus junk', Review of Accounting Studies 24",
+    "Jensen, Kelly and Pedersen (2023) 'Is There a Replication Crisis in Finance?', Journal of Finance 78(5)"
+   ],
+   "evidence": "Cash-based operating profitability beats accrual-inclusive profitability and subsumes the accrual anomaly (Ball et al.); the profitability premium and the cash-based advantage hold internationally (Huber-Hanauer working paper). Quality is priced across 24 countries (AFP); JKP's 93-country data replicate the quality theme out of sample.",
+   "sources": [
+    "https://faculty.tuck.dartmouth.edu/images/uploads/faculty/joseph-gerakos/Ball,_Gerakos,_Linnainmaa,_et_al._2016.pdf",
+    "https://nber.org/system/files/working_papers/w28432/w28432.pdf"
+   ]
+  },
+  {
+   "id": "usa_cash_profitability_fresh",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "anomaly_time",
+   "expression": "trade_when(days_from_last_change(ts_backfill({operating_cash_flow}, 252)) <= 42, rank(ts_backfill({operating_cash_flow}, 252) / ts_backfill({total_assets}, 252)), days_from_last_change(ts_backfill({operating_cash_flow}, 252)) > 63)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "anomaly returns concentrate in the month after the information is released and decay soon after: hold the cash-profitability signal only while the latest report is fresh (up to about 6 weeks old), and drop it once stale.",
+   "rationale_data": "operating cash flow and total assets (fundamental data); days since the cash-flow value last changed",
+   "rationale_operators": "trade_when enters while days_from_last_change(...) <= 42, holds, and exits after 63 days",
+   "roles": {
+    "operating_cash_flow": {
+     "type": "MATRIX",
+     "ids": [
+      "cashflow_op"
+     ],
+     "patterns": [
+      "cash flows? from operat",
+      "operating activities.{0,20}net cash",
+      "net cash (provided by|from|generated) operat",
+      "cash from operat",
+      "\\boperating cash flows?\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "per share",
+      "growth",
+      "change",
+      "ratio",
+      "yield",
+      "to (sales|assets|equity|debt|price)",
+      "margin",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "free cash",
+      "average",
+      "\\bmean\\b",
+      "industry",
+      "investing",
+      "financing"
+     ],
+     "search": [
+      "operating cash flow",
+      "cash flow from operations",
+      "operating activities"
+     ],
+     "min_coverage": 0.5
+    },
+    "total_assets": {
+     "type": "MATRIX",
+     "ids": [
+      "assets"
+     ],
+     "patterns": [
+      "^total assets$",
+      "^assets - total",
+      "\\btotal assets\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "growth",
+      "change",
+      "ratio",
+      "return on",
+      "turnover",
+      "per share",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "liabilities and",
+      "average",
+      "\\bmean\\b",
+      "median",
+      "industry",
+      "sector",
+      "current assets",
+      "intangible",
+      "tangible",
+      "net assets"
+     ],
+     "prefer": [
+      "total"
+     ],
+     "search": [
+      "total assets",
+      "total_assets"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "roles: check the fills with --no-sim first",
+   "risk": "fewer stocks hold positions at any time; compare with the ungated twin",
+   "papers": [
+    "Bowles, Reed, Ringgenberg and Thornock (2024) 'Anomaly Time', Journal of Finance 79(5)",
+    "Engelberg, McLean and Pontiff (2018) 'Anomalies and News', Journal of Finance 73(5) 1971-2001"
+   ],
+   "evidence": "Anomaly returns concentrate in the first month after the information is released and decay soon after (Bowles et al.); anomaly returns are 50% higher on news days and six times higher on earnings days (Engelberg et al., 97 anomalies). The probe holds a fundamental signal only while it is fresh.",
+   "sources": [
+    "https://papers.ssrn.com/author=3568822",
+    "https://ideas.repec.org/a/bla/jfinan/v73y2018i5p1971-2001.html"
+   ]
+  },
+  {
+   "id": "eur_gross_profitability",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "profitability",
+   "expression": "rank((ts_backfill({revenue}, 252) - ts_backfill({cogs}, 252)) / ts_backfill({total_assets}, 252))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "firms with high gross profits relative to assets earn more than unprofitable ones at the same price; gross profit is the cleanest accounting measure of economic profitability.",
+   "rationale_data": "revenue, cost of goods sold and total assets (fundamental data)",
+   "rationale_operators": "(revenue - COGS) / assets with ts_backfill carrying each annual or quarterly value between reports",
+   "roles": {
+    "revenue": {
+     "type": "MATRIX",
+     "ids": [
+      "sales",
+      "revenue"
+     ],
+     "patterns": [
+      "^(total |net )?(sales|revenues?)\\b",
+      "sales/turnover",
+      "\\btotal revenues?\\b",
+      "\\bnet sales\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "growth",
+      "change",
+      "per share",
+      "ratio",
+      "surprise",
+      "margin",
+      "to sales",
+      "cost of",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "segment",
+      "foreign",
+      "average",
+      "\\bmean\\b",
+      "median",
+      "industry",
+      "sector",
+      "deferred",
+      "unearned"
+     ],
+     "prefer": [
+      "total",
+      "net"
+     ],
+     "search": [
+      "total revenue",
+      "net sales",
+      "revenue"
+     ],
+     "min_coverage": 0.5
+    },
+    "cogs": {
+     "type": "MATRIX",
+     "ids": [
+      "cogs"
+     ],
+     "patterns": [
+      "cost of (goods sold|sales|revenues?)"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "growth",
+      "change",
+      "ratio",
+      "to sales",
+      "per share",
+      "fast_d1",
+      "rank",
+      "average",
+      "\\bmean\\b",
+      "industry"
+     ],
+     "search": [
+      "cost of goods sold",
+      "cost of sales"
+     ],
+     "min_coverage": 0.5
+    },
+    "total_assets": {
+     "type": "MATRIX",
+     "ids": [
+      "assets"
+     ],
+     "patterns": [
+      "^total assets$",
+      "^assets - total",
+      "\\btotal assets\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "growth",
+      "change",
+      "ratio",
+      "return on",
+      "turnover",
+      "per share",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "liabilities and",
+      "average",
+      "\\bmean\\b",
+      "median",
+      "industry",
+      "sector",
+      "current assets",
+      "intangible",
+      "tangible",
+      "net assets"
+     ],
+     "prefer": [
+      "total"
+     ],
+     "search": [
+      "total assets",
+      "total_assets"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "roles: check the fills with --no-sim first",
+   "papers": [
+    "Novy-Marx (2013) 'The other side of value: The gross profitability premium', Journal of Financial Economics 108(1)",
+    "Ball, Gerakos, Linnainmaa and Nikolaev (2016) 'Accruals, cash flows, and operating profitability in the cross section of stock returns', Journal of Financial Economics 121(1)",
+    "Asness, Frazzini and Pedersen (2019) 'Quality minus junk', Review of Accounting Studies 24",
+    "Jensen, Kelly and Pedersen (2023) 'Is There a Replication Crisis in Finance?', Journal of Finance 78(5)"
+   ],
+   "evidence": "Cash-based operating profitability beats accrual-inclusive profitability and subsumes the accrual anomaly (Ball et al.); the profitability premium and the cash-based advantage hold internationally (Huber-Hanauer working paper). Quality is priced across 24 countries (AFP); JKP's 93-country data replicate the quality theme out of sample.",
+   "sources": [
+    "https://faculty.tuck.dartmouth.edu/images/uploads/faculty/joseph-gerakos/Ball,_Gerakos,_Linnainmaa,_et_al._2016.pdf",
+    "https://nber.org/system/files/working_papers/w28432/w28432.pdf"
+   ]
+  },
+  {
+   "id": "eur_cash_profitability",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "profitability",
+   "expression": "rank(ts_backfill({operating_cash_flow}, 252) / ts_backfill({total_assets}, 252))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "cash-based operating profitability, which leaves accruals out, predicts returns better than accrual-based profitability and subsumes the accrual anomaly.",
+   "rationale_data": "operating cash flow and total assets (fundamental data)",
+   "rationale_operators": "cash flow from operations over total assets, carried between reports with ts_backfill",
+   "roles": {
+    "operating_cash_flow": {
+     "type": "MATRIX",
+     "ids": [
+      "cashflow_op"
+     ],
+     "patterns": [
+      "cash flows? from operat",
+      "operating activities.{0,20}net cash",
+      "net cash (provided by|from|generated) operat",
+      "cash from operat",
+      "\\boperating cash flows?\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "per share",
+      "growth",
+      "change",
+      "ratio",
+      "yield",
+      "to (sales|assets|equity|debt|price)",
+      "margin",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "free cash",
+      "average",
+      "\\bmean\\b",
+      "industry",
+      "investing",
+      "financing"
+     ],
+     "search": [
+      "operating cash flow",
+      "cash flow from operations",
+      "operating activities"
+     ],
+     "min_coverage": 0.5
+    },
+    "total_assets": {
+     "type": "MATRIX",
+     "ids": [
+      "assets"
+     ],
+     "patterns": [
+      "^total assets$",
+      "^assets - total",
+      "\\btotal assets\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "growth",
+      "change",
+      "ratio",
+      "return on",
+      "turnover",
+      "per share",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "liabilities and",
+      "average",
+      "\\bmean\\b",
+      "median",
+      "industry",
+      "sector",
+      "current assets",
+      "intangible",
+      "tangible",
+      "net assets"
+     ],
+     "prefer": [
+      "total"
+     ],
+     "search": [
+      "total assets",
+      "total_assets"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "roles: check the fills with --no-sim first",
+   "papers": [
+    "Novy-Marx (2013) 'The other side of value: The gross profitability premium', Journal of Financial Economics 108(1)",
+    "Ball, Gerakos, Linnainmaa and Nikolaev (2016) 'Accruals, cash flows, and operating profitability in the cross section of stock returns', Journal of Financial Economics 121(1)",
+    "Asness, Frazzini and Pedersen (2019) 'Quality minus junk', Review of Accounting Studies 24",
+    "Jensen, Kelly and Pedersen (2023) 'Is There a Replication Crisis in Finance?', Journal of Finance 78(5)"
+   ],
+   "evidence": "Cash-based operating profitability beats accrual-inclusive profitability and subsumes the accrual anomaly (Ball et al.); the profitability premium and the cash-based advantage hold internationally (Huber-Hanauer working paper). Quality is priced across 24 countries (AFP); JKP's 93-country data replicate the quality theme out of sample.",
+   "sources": [
+    "https://faculty.tuck.dartmouth.edu/images/uploads/faculty/joseph-gerakos/Ball,_Gerakos,_Linnainmaa,_et_al._2016.pdf",
+    "https://nber.org/system/files/working_papers/w28432/w28432.pdf"
+   ]
+  },
+  {
+   "id": "eur_asset_growth",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "asset_growth",
+   "expression": "-rank(ts_backfill({total_assets}, 252) / ts_delay(ts_backfill({total_assets}, 252), 252))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "firms that grow their assets fast earn low subsequent returns (investment and q-theory); the effect is larger in more developed, more efficient markets.",
+   "rationale_data": "total assets (fundamental data)",
+   "rationale_operators": "assets over assets a year earlier; the minus sign shorts fast growers",
+   "roles": {
+    "total_assets": {
+     "type": "MATRIX",
+     "ids": [
+      "assets"
+     ],
+     "patterns": [
+      "^total assets$",
+      "^assets - total",
+      "\\btotal assets\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "growth",
+      "change",
+      "ratio",
+      "return on",
+      "turnover",
+      "per share",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "liabilities and",
+      "average",
+      "\\bmean\\b",
+      "median",
+      "industry",
+      "sector",
+      "current assets",
+      "intangible",
+      "tangible",
+      "net assets"
+     ],
+     "prefer": [
+      "total"
+     ],
+     "search": [
+      "total assets",
+      "total_assets"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "roles: check the fills with --no-sim first",
+   "papers": [
+    "Cooper, Gulen and Schill (2008) 'Asset Growth and the Cross-Section of Stock Returns', Journal of Finance 63(4)",
+    "Watanabe, Xu, Yao and Yu (2013) 'The asset growth effect: Insights from international equity markets', Journal of Financial Economics 108(2) 529-563"
+   ],
+   "evidence": "The negative asset-growth / return relation holds internationally and is larger in more developed, more efficiently priced markets (Watanabe et al. 2013) - i.e. strongest in Europe and the developed part of GLB.",
+   "sources": [
+    "https://repository.hku.hk/bitstream/10722/188473/1/content.pdf"
+   ]
+  },
+  {
+   "id": "eur_cash_profitability_fresh",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "anomaly_time",
+   "expression": "trade_when(days_from_last_change(ts_backfill({operating_cash_flow}, 252)) <= 42, rank(ts_backfill({operating_cash_flow}, 252) / ts_backfill({total_assets}, 252)), days_from_last_change(ts_backfill({operating_cash_flow}, 252)) > 63)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "anomaly returns concentrate in the month after the information is released and decay soon after: hold the cash-profitability signal only while the latest report is fresh (up to about 6 weeks old), and drop it once stale.",
+   "rationale_data": "operating cash flow and total assets (fundamental data); days since the cash-flow value last changed",
+   "rationale_operators": "trade_when enters while days_from_last_change(...) <= 42, holds, and exits after 63 days",
+   "roles": {
+    "operating_cash_flow": {
+     "type": "MATRIX",
+     "ids": [
+      "cashflow_op"
+     ],
+     "patterns": [
+      "cash flows? from operat",
+      "operating activities.{0,20}net cash",
+      "net cash (provided by|from|generated) operat",
+      "cash from operat",
+      "\\boperating cash flows?\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "per share",
+      "growth",
+      "change",
+      "ratio",
+      "yield",
+      "to (sales|assets|equity|debt|price)",
+      "margin",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "free cash",
+      "average",
+      "\\bmean\\b",
+      "industry",
+      "investing",
+      "financing"
+     ],
+     "search": [
+      "operating cash flow",
+      "cash flow from operations",
+      "operating activities"
+     ],
+     "min_coverage": 0.5
+    },
+    "total_assets": {
+     "type": "MATRIX",
+     "ids": [
+      "assets"
+     ],
+     "patterns": [
+      "^total assets$",
+      "^assets - total",
+      "\\btotal assets\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "growth",
+      "change",
+      "ratio",
+      "return on",
+      "turnover",
+      "per share",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "liabilities and",
+      "average",
+      "\\bmean\\b",
+      "median",
+      "industry",
+      "sector",
+      "current assets",
+      "intangible",
+      "tangible",
+      "net assets"
+     ],
+     "prefer": [
+      "total"
+     ],
+     "search": [
+      "total assets",
+      "total_assets"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "roles: check the fills with --no-sim first",
+   "risk": "fewer stocks hold positions at any time; compare with the ungated twin",
+   "papers": [
+    "Bowles, Reed, Ringgenberg and Thornock (2024) 'Anomaly Time', Journal of Finance 79(5)",
+    "Engelberg, McLean and Pontiff (2018) 'Anomalies and News', Journal of Finance 73(5) 1971-2001"
+   ],
+   "evidence": "Anomaly returns concentrate in the first month after the information is released and decay soon after (Bowles et al.); anomaly returns are 50% higher on news days and six times higher on earnings days (Engelberg et al., 97 anomalies). The probe holds a fundamental signal only while it is fresh.",
+   "sources": [
+    "https://papers.ssrn.com/author=3568822",
+    "https://ideas.repec.org/a/bla/jfinan/v73y2018i5p1971-2001.html"
+   ]
+  },
+  {
+   "id": "glb_gross_profitability",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "profitability",
+   "expression": "group_rank((ts_backfill({revenue}, 252) - ts_backfill({cogs}, 252)) / ts_backfill({total_assets}, 252), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "firms with high gross profits relative to assets earn more than unprofitable ones at the same price; gross profit is the cleanest accounting measure of economic profitability.",
+   "rationale_data": "revenue, cost of goods sold and total assets (fundamental data)",
+   "rationale_operators": "(revenue - COGS) / assets with ts_backfill carrying each annual or quarterly value between reports; group_rank by country removes accounting and currency differences",
+   "roles": {
+    "revenue": {
+     "type": "MATRIX",
+     "ids": [
+      "sales",
+      "revenue"
+     ],
+     "patterns": [
+      "^(total |net )?(sales|revenues?)\\b",
+      "sales/turnover",
+      "\\btotal revenues?\\b",
+      "\\bnet sales\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "growth",
+      "change",
+      "per share",
+      "ratio",
+      "surprise",
+      "margin",
+      "to sales",
+      "cost of",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "segment",
+      "foreign",
+      "average",
+      "\\bmean\\b",
+      "median",
+      "industry",
+      "sector",
+      "deferred",
+      "unearned"
+     ],
+     "prefer": [
+      "total",
+      "net"
+     ],
+     "search": [
+      "total revenue",
+      "net sales",
+      "revenue"
+     ],
+     "min_coverage": 0.5
+    },
+    "cogs": {
+     "type": "MATRIX",
+     "ids": [
+      "cogs"
+     ],
+     "patterns": [
+      "cost of (goods sold|sales|revenues?)"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "growth",
+      "change",
+      "ratio",
+      "to sales",
+      "per share",
+      "fast_d1",
+      "rank",
+      "average",
+      "\\bmean\\b",
+      "industry"
+     ],
+     "search": [
+      "cost of goods sold",
+      "cost of sales"
+     ],
+     "min_coverage": 0.5
+    },
+    "total_assets": {
+     "type": "MATRIX",
+     "ids": [
+      "assets"
+     ],
+     "patterns": [
+      "^total assets$",
+      "^assets - total",
+      "\\btotal assets\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "growth",
+      "change",
+      "ratio",
+      "return on",
+      "turnover",
+      "per share",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "liabilities and",
+      "average",
+      "\\bmean\\b",
+      "median",
+      "industry",
+      "sector",
+      "current assets",
+      "intangible",
+      "tangible",
+      "net assets"
+     ],
+     "prefer": [
+      "total"
+     ],
+     "search": [
+      "total assets",
+      "total_assets"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "roles: check the fills with --no-sim first",
+   "papers": [
+    "Novy-Marx (2013) 'The other side of value: The gross profitability premium', Journal of Financial Economics 108(1)",
+    "Ball, Gerakos, Linnainmaa and Nikolaev (2016) 'Accruals, cash flows, and operating profitability in the cross section of stock returns', Journal of Financial Economics 121(1)",
+    "Asness, Frazzini and Pedersen (2019) 'Quality minus junk', Review of Accounting Studies 24",
+    "Jensen, Kelly and Pedersen (2023) 'Is There a Replication Crisis in Finance?', Journal of Finance 78(5)"
+   ],
+   "evidence": "Cash-based operating profitability beats accrual-inclusive profitability and subsumes the accrual anomaly (Ball et al.); the profitability premium and the cash-based advantage hold internationally (Huber-Hanauer working paper). Quality is priced across 24 countries (AFP); JKP's 93-country data replicate the quality theme out of sample.",
+   "sources": [
+    "https://faculty.tuck.dartmouth.edu/images/uploads/faculty/joseph-gerakos/Ball,_Gerakos,_Linnainmaa,_et_al._2016.pdf",
+    "https://nber.org/system/files/working_papers/w28432/w28432.pdf"
+   ]
+  },
+  {
+   "id": "glb_cash_profitability",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "profitability",
+   "expression": "group_rank(ts_backfill({operating_cash_flow}, 252) / ts_backfill({total_assets}, 252), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "cash-based operating profitability, which leaves accruals out, predicts returns better than accrual-based profitability and subsumes the accrual anomaly.",
+   "rationale_data": "operating cash flow and total assets (fundamental data)",
+   "rationale_operators": "cash flow from operations over total assets, carried between reports with ts_backfill; group_rank by country removes accounting and currency differences",
+   "roles": {
+    "operating_cash_flow": {
+     "type": "MATRIX",
+     "ids": [
+      "cashflow_op"
+     ],
+     "patterns": [
+      "cash flows? from operat",
+      "operating activities.{0,20}net cash",
+      "net cash (provided by|from|generated) operat",
+      "cash from operat",
+      "\\boperating cash flows?\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "per share",
+      "growth",
+      "change",
+      "ratio",
+      "yield",
+      "to (sales|assets|equity|debt|price)",
+      "margin",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "free cash",
+      "average",
+      "\\bmean\\b",
+      "industry",
+      "investing",
+      "financing"
+     ],
+     "search": [
+      "operating cash flow",
+      "cash flow from operations",
+      "operating activities"
+     ],
+     "min_coverage": 0.5
+    },
+    "total_assets": {
+     "type": "MATRIX",
+     "ids": [
+      "assets"
+     ],
+     "patterns": [
+      "^total assets$",
+      "^assets - total",
+      "\\btotal assets\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "growth",
+      "change",
+      "ratio",
+      "return on",
+      "turnover",
+      "per share",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "liabilities and",
+      "average",
+      "\\bmean\\b",
+      "median",
+      "industry",
+      "sector",
+      "current assets",
+      "intangible",
+      "tangible",
+      "net assets"
+     ],
+     "prefer": [
+      "total"
+     ],
+     "search": [
+      "total assets",
+      "total_assets"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "roles: check the fills with --no-sim first",
+   "papers": [
+    "Novy-Marx (2013) 'The other side of value: The gross profitability premium', Journal of Financial Economics 108(1)",
+    "Ball, Gerakos, Linnainmaa and Nikolaev (2016) 'Accruals, cash flows, and operating profitability in the cross section of stock returns', Journal of Financial Economics 121(1)",
+    "Asness, Frazzini and Pedersen (2019) 'Quality minus junk', Review of Accounting Studies 24",
+    "Jensen, Kelly and Pedersen (2023) 'Is There a Replication Crisis in Finance?', Journal of Finance 78(5)"
+   ],
+   "evidence": "Cash-based operating profitability beats accrual-inclusive profitability and subsumes the accrual anomaly (Ball et al.); the profitability premium and the cash-based advantage hold internationally (Huber-Hanauer working paper). Quality is priced across 24 countries (AFP); JKP's 93-country data replicate the quality theme out of sample.",
+   "sources": [
+    "https://faculty.tuck.dartmouth.edu/images/uploads/faculty/joseph-gerakos/Ball,_Gerakos,_Linnainmaa,_et_al._2016.pdf",
+    "https://nber.org/system/files/working_papers/w28432/w28432.pdf"
+   ]
+  },
+  {
+   "id": "glb_asset_growth",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "asset_growth",
+   "expression": "-group_rank(ts_backfill({total_assets}, 252) / ts_delay(ts_backfill({total_assets}, 252), 252), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "firms that grow their assets fast earn low subsequent returns (investment and q-theory); the effect is larger in more developed, more efficient markets.",
+   "rationale_data": "total assets (fundamental data)",
+   "rationale_operators": "assets over assets a year earlier; the minus sign shorts fast growers; group_rank by country removes accounting and currency differences",
+   "roles": {
+    "total_assets": {
+     "type": "MATRIX",
+     "ids": [
+      "assets"
+     ],
+     "patterns": [
+      "^total assets$",
+      "^assets - total",
+      "\\btotal assets\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "growth",
+      "change",
+      "ratio",
+      "return on",
+      "turnover",
+      "per share",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "liabilities and",
+      "average",
+      "\\bmean\\b",
+      "median",
+      "industry",
+      "sector",
+      "current assets",
+      "intangible",
+      "tangible",
+      "net assets"
+     ],
+     "prefer": [
+      "total"
+     ],
+     "search": [
+      "total assets",
+      "total_assets"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "roles: check the fills with --no-sim first",
+   "papers": [
+    "Cooper, Gulen and Schill (2008) 'Asset Growth and the Cross-Section of Stock Returns', Journal of Finance 63(4)",
+    "Watanabe, Xu, Yao and Yu (2013) 'The asset growth effect: Insights from international equity markets', Journal of Financial Economics 108(2) 529-563"
+   ],
+   "evidence": "The negative asset-growth / return relation holds internationally and is larger in more developed, more efficiently priced markets (Watanabe et al. 2013) - i.e. strongest in Europe and the developed part of GLB.",
+   "sources": [
+    "https://repository.hku.hk/bitstream/10722/188473/1/content.pdf"
+   ]
+  },
+  {
+   "id": "glb_cash_profitability_fresh",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "anomaly_time",
+   "expression": "trade_when(days_from_last_change(ts_backfill({operating_cash_flow}, 252)) <= 42, group_rank(ts_backfill({operating_cash_flow}, 252) / ts_backfill({total_assets}, 252), country), days_from_last_change(ts_backfill({operating_cash_flow}, 252)) > 63)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "anomaly returns concentrate in the month after the information is released and decay soon after: hold the cash-profitability signal only while the latest report is fresh (up to about 6 weeks old), and drop it once stale.",
+   "rationale_data": "operating cash flow and total assets (fundamental data); days since the cash-flow value last changed",
+   "rationale_operators": "trade_when enters while days_from_last_change(...) <= 42, holds, and exits after 63 days",
+   "roles": {
+    "operating_cash_flow": {
+     "type": "MATRIX",
+     "ids": [
+      "cashflow_op"
+     ],
+     "patterns": [
+      "cash flows? from operat",
+      "operating activities.{0,20}net cash",
+      "net cash (provided by|from|generated) operat",
+      "cash from operat",
+      "\\boperating cash flows?\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "per share",
+      "growth",
+      "change",
+      "ratio",
+      "yield",
+      "to (sales|assets|equity|debt|price)",
+      "margin",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "free cash",
+      "average",
+      "\\bmean\\b",
+      "industry",
+      "investing",
+      "financing"
+     ],
+     "search": [
+      "operating cash flow",
+      "cash flow from operations",
+      "operating activities"
+     ],
+     "min_coverage": 0.5
+    },
+    "total_assets": {
+     "type": "MATRIX",
+     "ids": [
+      "assets"
+     ],
+     "patterns": [
+      "^total assets$",
+      "^assets - total",
+      "\\btotal assets\\b"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "consensus",
+      "growth",
+      "change",
+      "ratio",
+      "return on",
+      "turnover",
+      "per share",
+      "fast_d1",
+      "rank",
+      "quantile",
+      "liabilities and",
+      "average",
+      "\\bmean\\b",
+      "median",
+      "industry",
+      "sector",
+      "current assets",
+      "intangible",
+      "tangible",
+      "net assets"
+     ],
+     "prefer": [
+      "total"
+     ],
+     "search": [
+      "total assets",
+      "total_assets"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "roles: check the fills with --no-sim first",
+   "risk": "fewer stocks hold positions at any time; compare with the ungated twin",
+   "papers": [
+    "Bowles, Reed, Ringgenberg and Thornock (2024) 'Anomaly Time', Journal of Finance 79(5)",
+    "Engelberg, McLean and Pontiff (2018) 'Anomalies and News', Journal of Finance 73(5) 1971-2001"
+   ],
+   "evidence": "Anomaly returns concentrate in the first month after the information is released and decay soon after (Bowles et al.); anomaly returns are 50% higher on news days and six times higher on earnings days (Engelberg et al., 97 anomalies). The probe holds a fundamental signal only while it is fresh.",
+   "sources": [
+    "https://papers.ssrn.com/author=3568822",
+    "https://ideas.repec.org/a/bla/jfinan/v73y2018i5p1971-2001.html"
+   ]
+  },
+  {
+   "id": "usa_ltg_pessimism",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "ltg",
+   "expression": "-rank(ts_backfill({ltg}, 126))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "analysts over-extrapolate recent earnings growth into their long-term growth forecasts (diagnostic expectations), so the stocks with the most optimistic long-term growth forecasts disappoint and earn less than the most pessimistic ones.",
+   "rationale_data": "analysts' consensus long-term EPS growth forecast",
+   "rationale_operators": "ts_backfill carries the forecast between updates; the minus sign shorts the most optimistic forecasts",
+   "roles": {
+    "ltg": {
+     "type": "MATRIX",
+     "patterns": [
+      "long[- ]term (eps |earnings |per share )?growth",
+      "\\bltg\\b",
+      "5[- ]year (eps |earnings )?growth"
+     ],
+     "exclude": [
+      "revenue",
+      "sales",
+      "dividend",
+      "number of",
+      "count",
+      "std",
+      "deviation",
+      "\\bhigh\\b",
+      "\\blow\\b",
+      "revision",
+      "change",
+      "fast_d1",
+      "actual",
+      "historical",
+      "realized",
+      "price"
+     ],
+     "prefer": [
+      "mean",
+      "median",
+      "consensus"
+     ],
+     "search": [
+      "long term growth",
+      "ltg"
+     ],
+     "min_coverage": 0.3
+    }
+   },
+   "fields": "role: ltg (no verified id; check the fill)",
+   "papers": [
+    "Bordalo, Gennaioli, La Porta and Shleifer (2019) 'Diagnostic Expectations and Stock Returns', Journal of Finance 74(6)",
+    "La Porta (1996) 'Expectations and the Cross-Section of Stock Returns', Journal of Finance 51(5)"
+   ],
+   "evidence": "Stocks with the most optimistic analyst long-term growth forecasts earn lower returns than those with the most pessimistic: analysts over-extrapolate (diagnostic expectations). U.S. evidence; EUR/GLB are ports where the field exists.",
+   "sources": [
+    "https://www.nber.org/papers/w23863.pdf"
+   ]
+  },
+  {
+   "id": "usa_target_price_relative",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "target_price",
+   "expression": "group_rank(ts_backfill({target_price}, 63) / close, industry)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "analysts' target-price-implied returns are informative relative to industry peers: ranking target price over price within an industry removes analysts' industry-wide optimism and keeps their relative valuation.",
+   "rationale_data": "consensus analyst target price and the close price",
+   "rationale_operators": "ts_backfill(target, 63) / close is the implied return; group_rank within the industry",
+   "roles": {
+    "target_price": {
+     "type": "MATRIX",
+     "ids": [
+      "mean_estimate_targetprice_annual12_tribes"
+     ],
+     "patterns": [
+      "(mean|average|consensus) (analyst )?(target price|price target)",
+      "target price.{0,30}(mean|average)",
+      "\\bprice target\\b",
+      "\\btarget price\\b"
+     ],
+     "exclude": [
+      "std",
+      "deviation",
+      "\\bhigh\\b",
+      "\\blow\\b",
+      "number",
+      "count",
+      "revision",
+      "upward",
+      "downward",
+      "change",
+      "dispersion",
+      "fast_d1",
+      "currency",
+      "date",
+      "implied return"
+     ],
+     "prefer": [
+      "mean",
+      "average",
+      "consensus"
+     ],
+     "search": [
+      "target price",
+      "price target"
+     ],
+     "min_coverage": 0.4
+    }
+   },
+   "fields": "verified id in USA (mean_estimate_targetprice_annual12_tribes); role elsewhere",
+   "risk": "target over price rises when the price falls: watch the 5-day reversal exposure",
+   "papers": [
+    "Da and Schaumburg (2011) 'Relative valuation and analyst target price forecasts', Journal of Financial Markets 14(1)",
+    "Dechow and You (2020) 'Understanding the Determinants of Analyst Target Price Implied Returns', The Accounting Review 95(6)"
+   ],
+   "evidence": "Target-price-implied returns are informative relative to industry peers: ranking within an industry removes the industry-wide optimism of analysts (Da-Schaumburg; details from memory, not re-verified this session). Consensus targets implied 22.7% a year against 9.3% realized (Dechow-You draft), so level comparisons across industries are biased.",
+   "sources": [
+    "https://www.kellogg.northwestern.edu/academics-research/research/detail/2008/relative-valuation-and-analyst-target-price-forecasts/?p=1"
+   ]
+  },
+  {
+   "id": "eur_ltg_pessimism",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "ltg",
+   "expression": "-rank(ts_backfill({ltg}, 126))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "analysts over-extrapolate recent earnings growth into their long-term growth forecasts (diagnostic expectations), so the stocks with the most optimistic long-term growth forecasts disappoint and earn less than the most pessimistic ones.",
+   "rationale_data": "analysts' consensus long-term EPS growth forecast",
+   "rationale_operators": "ts_backfill carries the forecast between updates; the minus sign shorts the most optimistic forecasts",
+   "roles": {
+    "ltg": {
+     "type": "MATRIX",
+     "patterns": [
+      "long[- ]term (eps |earnings |per share )?growth",
+      "\\bltg\\b",
+      "5[- ]year (eps |earnings )?growth"
+     ],
+     "exclude": [
+      "revenue",
+      "sales",
+      "dividend",
+      "number of",
+      "count",
+      "std",
+      "deviation",
+      "\\bhigh\\b",
+      "\\blow\\b",
+      "revision",
+      "change",
+      "fast_d1",
+      "actual",
+      "historical",
+      "realized",
+      "price"
+     ],
+     "prefer": [
+      "mean",
+      "median",
+      "consensus"
+     ],
+     "search": [
+      "long term growth",
+      "ltg"
+     ],
+     "min_coverage": 0.3
+    }
+   },
+   "fields": "role: ltg (no verified id; check the fill)",
+   "papers": [
+    "Bordalo, Gennaioli, La Porta and Shleifer (2019) 'Diagnostic Expectations and Stock Returns', Journal of Finance 74(6)",
+    "La Porta (1996) 'Expectations and the Cross-Section of Stock Returns', Journal of Finance 51(5)"
+   ],
+   "evidence": "Stocks with the most optimistic analyst long-term growth forecasts earn lower returns than those with the most pessimistic: analysts over-extrapolate (diagnostic expectations). U.S. evidence; EUR/GLB are ports where the field exists.",
+   "sources": [
+    "https://www.nber.org/papers/w23863.pdf"
+   ]
+  },
+  {
+   "id": "eur_target_price_relative",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "target_price",
+   "expression": "group_rank(ts_backfill({target_price}, 63) / close, densify(group_cartesian_product(country, industry)))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "analysts' target-price-implied returns are informative relative to industry peers: ranking target price over price within an industry removes analysts' industry-wide optimism and keeps their relative valuation.",
+   "rationale_data": "consensus analyst target price and the close price",
+   "rationale_operators": "ts_backfill(target, 63) / close is the implied return; group_rank within country x industry cells (one currency, one industry)",
+   "roles": {
+    "target_price": {
+     "type": "MATRIX",
+     "ids": [
+      "mean_estimate_targetprice_annual12_tribes"
+     ],
+     "patterns": [
+      "(mean|average|consensus) (analyst )?(target price|price target)",
+      "target price.{0,30}(mean|average)",
+      "\\bprice target\\b",
+      "\\btarget price\\b"
+     ],
+     "exclude": [
+      "std",
+      "deviation",
+      "\\bhigh\\b",
+      "\\blow\\b",
+      "number",
+      "count",
+      "revision",
+      "upward",
+      "downward",
+      "change",
+      "dispersion",
+      "fast_d1",
+      "currency",
+      "date",
+      "implied return"
+     ],
+     "prefer": [
+      "mean",
+      "average",
+      "consensus"
+     ],
+     "search": [
+      "target price",
+      "price target"
+     ],
+     "min_coverage": 0.4
+    }
+   },
+   "fields": "verified id in USA (mean_estimate_targetprice_annual12_tribes); role elsewhere",
+   "risk": "target over price rises when the price falls: watch the 5-day reversal exposure",
+   "papers": [
+    "Da and Schaumburg (2011) 'Relative valuation and analyst target price forecasts', Journal of Financial Markets 14(1)",
+    "Dechow and You (2020) 'Understanding the Determinants of Analyst Target Price Implied Returns', The Accounting Review 95(6)"
+   ],
+   "evidence": "Target-price-implied returns are informative relative to industry peers: ranking within an industry removes the industry-wide optimism of analysts (Da-Schaumburg; details from memory, not re-verified this session). Consensus targets implied 22.7% a year against 9.3% realized (Dechow-You draft), so level comparisons across industries are biased.",
+   "sources": [
+    "https://www.kellogg.northwestern.edu/academics-research/research/detail/2008/relative-valuation-and-analyst-target-price-forecasts/?p=1"
+   ]
+  },
+  {
+   "id": "glb_ltg_pessimism",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "ltg",
+   "expression": "-group_rank(ts_backfill({ltg}, 126), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "analysts over-extrapolate recent earnings growth into their long-term growth forecasts (diagnostic expectations), so the stocks with the most optimistic long-term growth forecasts disappoint and earn less than the most pessimistic ones.",
+   "rationale_data": "analysts' consensus long-term EPS growth forecast",
+   "rationale_operators": "ts_backfill carries the forecast between updates; the minus sign shorts the most optimistic forecasts",
+   "roles": {
+    "ltg": {
+     "type": "MATRIX",
+     "patterns": [
+      "long[- ]term (eps |earnings |per share )?growth",
+      "\\bltg\\b",
+      "5[- ]year (eps |earnings )?growth"
+     ],
+     "exclude": [
+      "revenue",
+      "sales",
+      "dividend",
+      "number of",
+      "count",
+      "std",
+      "deviation",
+      "\\bhigh\\b",
+      "\\blow\\b",
+      "revision",
+      "change",
+      "fast_d1",
+      "actual",
+      "historical",
+      "realized",
+      "price"
+     ],
+     "prefer": [
+      "mean",
+      "median",
+      "consensus"
+     ],
+     "search": [
+      "long term growth",
+      "ltg"
+     ],
+     "min_coverage": 0.3
+    }
+   },
+   "fields": "role: ltg (no verified id; check the fill)",
+   "papers": [
+    "Bordalo, Gennaioli, La Porta and Shleifer (2019) 'Diagnostic Expectations and Stock Returns', Journal of Finance 74(6)",
+    "La Porta (1996) 'Expectations and the Cross-Section of Stock Returns', Journal of Finance 51(5)"
+   ],
+   "evidence": "Stocks with the most optimistic analyst long-term growth forecasts earn lower returns than those with the most pessimistic: analysts over-extrapolate (diagnostic expectations). U.S. evidence; EUR/GLB are ports where the field exists.",
+   "sources": [
+    "https://www.nber.org/papers/w23863.pdf"
+   ]
+  },
+  {
+   "id": "glb_target_price_relative",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "target_price",
+   "expression": "group_rank(ts_backfill({target_price}, 63) / close, densify(group_cartesian_product(country, industry)))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "analysts' target-price-implied returns are informative relative to industry peers: ranking target price over price within an industry removes analysts' industry-wide optimism and keeps their relative valuation.",
+   "rationale_data": "consensus analyst target price and the close price",
+   "rationale_operators": "ts_backfill(target, 63) / close is the implied return; group_rank within country x industry cells (one currency, one industry)",
+   "roles": {
+    "target_price": {
+     "type": "MATRIX",
+     "ids": [
+      "mean_estimate_targetprice_annual12_tribes"
+     ],
+     "patterns": [
+      "(mean|average|consensus) (analyst )?(target price|price target)",
+      "target price.{0,30}(mean|average)",
+      "\\bprice target\\b",
+      "\\btarget price\\b"
+     ],
+     "exclude": [
+      "std",
+      "deviation",
+      "\\bhigh\\b",
+      "\\blow\\b",
+      "number",
+      "count",
+      "revision",
+      "upward",
+      "downward",
+      "change",
+      "dispersion",
+      "fast_d1",
+      "currency",
+      "date",
+      "implied return"
+     ],
+     "prefer": [
+      "mean",
+      "average",
+      "consensus"
+     ],
+     "search": [
+      "target price",
+      "price target"
+     ],
+     "min_coverage": 0.4
+    }
+   },
+   "fields": "verified id in USA (mean_estimate_targetprice_annual12_tribes); role elsewhere",
+   "risk": "target over price rises when the price falls: watch the 5-day reversal exposure",
+   "papers": [
+    "Da and Schaumburg (2011) 'Relative valuation and analyst target price forecasts', Journal of Financial Markets 14(1)",
+    "Dechow and You (2020) 'Understanding the Determinants of Analyst Target Price Implied Returns', The Accounting Review 95(6)"
+   ],
+   "evidence": "Target-price-implied returns are informative relative to industry peers: ranking within an industry removes the industry-wide optimism of analysts (Da-Schaumburg; details from memory, not re-verified this session). Consensus targets implied 22.7% a year against 9.3% realized (Dechow-You draft), so level comparisons across industries are biased.",
+   "sources": [
+    "https://www.kellogg.northwestern.edu/academics-research/research/detail/2008/relative-valuation-and-analyst-target-price-forecasts/?p=1"
+   ]
+  },
+  {
+   "id": "usa_target_price_relative_biasfree",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "target_price",
+   "expression": "group_rank(ts_backfill(avg_first_biasfree_price_target_estimate, 63) / close, industry)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "the same relative valuation with the vendor's bias-free target price, which removes each analyst's systematic optimism before averaging.",
+   "rationale_data": "bias-free average price target and the close price",
+   "rationale_operators": "ts_backfill(target, 63) / close ranked within the industry",
+   "fields": "verified USA ids (shape probes, round 3)",
+   "papers": [
+    "Da and Schaumburg (2011) 'Relative valuation and analyst target price forecasts', Journal of Financial Markets 14(1)",
+    "Dechow and You (2020) 'Understanding the Determinants of Analyst Target Price Implied Returns', The Accounting Review 95(6)"
+   ],
+   "evidence": "Target-price-implied returns are informative relative to industry peers: ranking within an industry removes the industry-wide optimism of analysts (Da-Schaumburg; details from memory, not re-verified this session). Consensus targets implied 22.7% a year against 9.3% realized (Dechow-You draft), so level comparisons across industries are biased.",
+   "sources": [
+    "https://www.kellogg.northwestern.edu/academics-research/research/detail/2008/relative-valuation-and-analyst-target-price-forecasts/?p=1"
+   ]
+  },
+  {
+   "id": "usa_bold_revisions",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "bold",
+   "expression": "rank(ts_backfill({bold_up}, 63) - ts_backfill({bold_down}, 63))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "investors fail to separate bold revisions (away from consensus, new information) from herding ones; the drift after bold upward minus bold downward revisions is the under-priced part of analysts' news.",
+   "rationale_data": "counts of positive and negative bold FY1 earnings estimates",
+   "rationale_operators": "ts_backfill carries the counts over a quarter; rank of their difference",
+   "roles": {
+    "bold_up": {
+     "type": "MATRIX",
+     "ids": [
+      "count_positive_bold_estimates_fy1"
+     ],
+     "patterns": [
+      "count of positive bold"
+     ],
+     "search": [
+      "bold estimates"
+     ],
+     "min_coverage": 0.3
+    },
+    "bold_down": {
+     "type": "MATRIX",
+     "ids": [
+      "count_negative_bold_estimates_fy1"
+     ],
+     "patterns": [
+      "count of negative bold"
+     ],
+     "search": [
+      "bold estimates"
+     ],
+     "min_coverage": 0.3
+    }
+   },
+   "fields": "verified USA ids (model26 test fixture); role elsewhere",
+   "papers": [
+    "Gleason and Lee (2003) 'Analyst Forecast Revisions and Market Price Discovery', The Accounting Review 78(1) 193-225",
+    "Clement and Tse (2005) 'Financial Analyst Characteristics and Herding Behavior in Forecasting', Journal of Finance 60(1)"
+   ],
+   "evidence": "Prices fail to separate high-innovation revisions (moving away from consensus) from herding ones; the drift after informative revisions is larger and is corrected around later announcements (Gleason-Lee). Bold forecasts carry more information than herding ones (Clement-Tse).",
+   "sources": [
+    "https://iro.uiowa.edu/esploro/outputs/journalArticle/Analyst-Forecast-Revisions-and-Market-Price/9984380448602771"
+   ]
+  },
+  {
+   "id": "eur_bold_revisions",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "bold",
+   "expression": "rank(ts_backfill({bold_up}, 63) - ts_backfill({bold_down}, 63))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "investors fail to separate bold revisions (away from consensus, new information) from herding ones; the drift after bold upward minus bold downward revisions is the under-priced part of analysts' news.",
+   "rationale_data": "counts of positive and negative bold FY1 earnings estimates",
+   "rationale_operators": "ts_backfill carries the counts over a quarter; rank of their difference",
+   "roles": {
+    "bold_up": {
+     "type": "MATRIX",
+     "ids": [
+      "count_positive_bold_estimates_fy1"
+     ],
+     "patterns": [
+      "count of positive bold"
+     ],
+     "search": [
+      "bold estimates"
+     ],
+     "min_coverage": 0.3
+    },
+    "bold_down": {
+     "type": "MATRIX",
+     "ids": [
+      "count_negative_bold_estimates_fy1"
+     ],
+     "patterns": [
+      "count of negative bold"
+     ],
+     "search": [
+      "bold estimates"
+     ],
+     "min_coverage": 0.3
+    }
+   },
+   "fields": "verified USA ids (model26 test fixture); role elsewhere",
+   "papers": [
+    "Gleason and Lee (2003) 'Analyst Forecast Revisions and Market Price Discovery', The Accounting Review 78(1) 193-225",
+    "Clement and Tse (2005) 'Financial Analyst Characteristics and Herding Behavior in Forecasting', Journal of Finance 60(1)"
+   ],
+   "evidence": "Prices fail to separate high-innovation revisions (moving away from consensus) from herding ones; the drift after informative revisions is larger and is corrected around later announcements (Gleason-Lee). Bold forecasts carry more information than herding ones (Clement-Tse).",
+   "sources": [
+    "https://iro.uiowa.edu/esploro/outputs/journalArticle/Analyst-Forecast-Revisions-and-Market-Price/9984380448602771"
+   ]
+  },
+  {
+   "id": "usa_analyst_optimism_gap",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "analyst_bias",
+   "expression": "-rank((ts_backfill({eps_forecast}, 63) - ts_backfill({eps_actual}, 252)) / close)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "analysts' earnings forecasts are biased upward, most for firms they are excited about; the gap between the consensus forecast and the last reported earnings, over price, measures that optimism and predicts low returns.",
+   "rationale_data": "consensus annual EPS forecast, last actual annual EPS and the close price",
+   "rationale_operators": "(forecast - actual) / close; the minus sign shorts the most optimistic gaps",
+   "roles": {
+    "eps_forecast": {
+     "type": "MATRIX",
+     "ids": [
+      "anl4_afv4_eps_mean",
+      "earnings_per_share_average"
+     ],
+     "patterns": [
+      "earnings per share.{0,40}(average|mean) of estimat",
+      "(mean|consensus|average) (eps|earnings per share) estimate"
+     ],
+     "exclude": [
+      "quarter",
+      "\\bfq",
+      "fy2",
+      "next year",
+      "std",
+      "deviation",
+      "\\bhigh\\b",
+      "\\blow\\b",
+      "number",
+      "count",
+      "revision",
+      "change",
+      "surprise",
+      "fast_d1"
+     ],
+     "prefer": [
+      "annual",
+      "fy1",
+      "current"
+     ],
+     "search": [
+      "earnings per share average",
+      "eps mean"
+     ],
+     "min_coverage": 0.5
+    },
+    "eps_actual": {
+     "type": "MATRIX",
+     "ids": [
+      "anl4_af_eps_value"
+     ],
+     "patterns": [
+      "earnings per share.{0,20}actual",
+      "actual (eps|earnings per share)",
+      "reported (eps|earnings per share)"
+     ],
+     "exclude": [
+      "estimat",
+      "forecast",
+      "surprise",
+      "growth",
+      "change",
+      "quarter",
+      "fast_d1",
+      "std"
+     ],
+     "search": [
+      "earnings per share actual",
+      "actual eps"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "ids tried first (anl4_af_eps_value is in the USA test fixture); check the fill",
+   "papers": [
+    "van Binsbergen, Han and Lopez-Lira (2023) 'Man versus Machine Learning: The Term Structure of Earnings Expectations and Conditional Biases', Review of Financial Studies 36(6) 2361-2396"
+   ],
+   "evidence": "Analysts' forecasts are biased upward relative to a machine-learning benchmark; the bias predicts lower returns across firms and fills the short legs of many anomalies, and the most over-forecast firms issue stock. The probe uses forecast minus last actual EPS, over price, as a simple stand-in for the bias.",
+   "sources": [
+    "https://ideas.repec.org/a/oup/rfinst/v36y2023i6p2361-2396..html"
+   ]
+  },
+  {
+   "id": "usa_vol_of_vol_opt3",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "vol_of_vol",
+   "expression": "-rank(ts_std_dev(ts_backfill((opt3_volcallatm + opt3_volputatm) / 2, 5), 21) / ts_mean(ts_backfill((opt3_volcallatm + opt3_volputatm) / 2, 5), 21))",
+   "neutralization": "SUBINDUSTRY",
+   "decay": 4,
+   "idea": "uncertainty about risk is disliked: stocks whose implied volatility itself is volatile (high vol-of-vol) underperform those with stable implied volatility, by about 8% a year in the U.S. and Europe.",
+   "rationale_data": "at-the-money call and put implied volatility (opt3, used in submitted composites #493 / #499)",
+   "rationale_operators": "ts_std_dev over ts_mean of the 21-day ATM implied volatility is its coefficient of variation; ts_backfill(…, 5) bridges missing days; the minus sign shorts high vol-of-vol",
+   "fields": "verified USA ids (FINDINGS round 7)",
+   "papers": [
+    "Baltussen, van Bekkum and van der Grient (2018) 'Unknown Unknowns: Uncertainty About Risk and Stock Returns', JFQA 53(4) 1615-1651"
+   ],
+   "evidence": "Stocks with high volatility of implied volatility underperform low ones by about 8%/year in the U.S. and Europe, distinct from at least 20 known predictors. On this account option-surface changes were the most unique information found (IV innovations: one production alpha above 0.5).",
+   "sources": [
+    "https://www.cambridge.org/core/journals/journal-of-financial-and-quantitative-analysis/article/unknown-unknowns-uncertainty-about-risk-and-stock-returns/6E0E98349D20C1DCF67F3A0452361B80"
+   ]
+  },
+  {
+   "id": "usa_vol_of_vol_30d",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "vol_of_vol",
+   "expression": "-rank(ts_std_dev(ts_backfill(atm_call_volatility_30d_long_term_2, 5), 21) / ts_mean(ts_backfill(atm_call_volatility_30d_long_term_2, 5), 21))",
+   "neutralization": "SUBINDUSTRY",
+   "decay": 4,
+   "idea": "the same vol-of-vol on the 30-day at-the-money call volatility of the option horizon dataset, whose fields few BRAIN alphas use.",
+   "rationale_data": "30-day at-the-money call implied volatility (option horizon decomposition)",
+   "rationale_operators": "coefficient of variation of the 21-day implied volatility; the minus sign shorts high vol-of-vol",
+   "fields": "verified USA id (probe files)",
+   "papers": [
+    "Baltussen, van Bekkum and van der Grient (2018) 'Unknown Unknowns: Uncertainty About Risk and Stock Returns', JFQA 53(4) 1615-1651"
+   ],
+   "evidence": "Stocks with high volatility of implied volatility underperform low ones by about 8%/year in the U.S. and Europe, distinct from at least 20 known predictors. On this account option-surface changes were the most unique information found (IV innovations: one production alpha above 0.5).",
+   "sources": [
+    "https://www.cambridge.org/core/journals/journal-of-financial-and-quantitative-analysis/article/unknown-unknowns-uncertainty-about-risk-and-stock-returns/6E0E98349D20C1DCF67F3A0452361B80"
+   ]
+  },
+  {
+   "id": "eur_vol_of_vol",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "vol_of_vol",
+   "expression": "-rank(ts_std_dev(ts_backfill(({iv_call} + {iv_put}) / 2, 5), 21) / ts_mean(ts_backfill(({iv_call} + {iv_put}) / 2, 5), 21))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "vol-of-vol in Europe, where the paper also found it (about 8% a year).",
+   "rationale_data": "at-the-money call and put implied volatility",
+   "rationale_operators": "coefficient of variation of the 21-day average ATM implied volatility; the minus sign shorts high vol-of-vol",
+   "roles": {
+    "iv_call": {
+     "type": "MATRIX",
+     "patterns": [
+      "^implied volatility of at-the-money call options$"
+     ],
+     "min_coverage": 0.3
+    },
+    "iv_put": {
+     "type": "MATRIX",
+     "patterns": [
+      "^implied volatility of at-the-money put options$"
+     ],
+     "min_coverage": 0.3
+    }
+   },
+   "fields": "roles (EUR options coverage was thin in round 13)",
+   "papers": [
+    "Baltussen, van Bekkum and van der Grient (2018) 'Unknown Unknowns: Uncertainty About Risk and Stock Returns', JFQA 53(4) 1615-1651"
+   ],
+   "evidence": "Stocks with high volatility of implied volatility underperform low ones by about 8%/year in the U.S. and Europe, distinct from at least 20 known predictors. On this account option-surface changes were the most unique information found (IV innovations: one production alpha above 0.5).",
+   "sources": [
+    "https://www.cambridge.org/core/journals/journal-of-financial-and-quantitative-analysis/article/unknown-unknowns-uncertainty-about-risk-and-stock-returns/6E0E98349D20C1DCF67F3A0452361B80"
+   ]
+  },
+  {
+   "id": "usa_news_day_drift",
+   "region": "USA",
+   "universe": "TOP3000",
+   "delay": 1,
+   "theme": "news_drift",
+   "expression": "rank(ts_sum(if_else(vec_count(nws18_ssc) > 0, returns, 0), 5))",
+   "neutralization": "SUBINDUSTRY",
+   "decay": 4,
+   "idea": "prices under-react to firm news: the return on days with news keeps drifting in the same direction for several days, without reversal, more so when investors are distracted.",
+   "rationale_data": "returns and the RavenPack story vector (nws18_ssc: one entry per story)",
+   "rationale_operators": "if_else keeps the returns of days with at least one story; ts_sum over 5 days; returns of no-news days, which reverse, are left out",
+   "fields": "verified USA ids (shape probes)",
+   "papers": [
+    "Jiang, Li and Wang (2021) 'Pervasive underreaction: Evidence from high-frequency data', Journal of Financial Economics 141(2) 573-599",
+    "Chen, Kelly and Xiu (2022-2024) 'Expected Returns and Large Language Models' (working paper; 16 international markets, 13 languages)"
+   ],
+   "evidence": "Prices drift for several days in the direction of the news-day move, without reversal; stronger when investors are distracted; profitable after costs (Jiang et al.). News-text return predictions work in 16 international markets, consistent with slow reaction to news (Chen et al.).",
+   "sources": [
+    "https://ideas.repec.org:443/a/eee/jfinec/v141y2021i2p573-599.html",
+    "https://nlpecofin.web.ox.ac.uk/node/3041271"
+   ]
+  },
+  {
+   "id": "eur_news_day_drift",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "news_drift",
+   "expression": "group_rank(ts_sum(if_else({news_count} > 0, returns, 0), 5), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "news-day returns drift, as in the U.S.; news-text predictions work in 16 international markets.",
+   "rationale_data": "returns and the number of news stories per stock",
+   "rationale_operators": "if_else keeps news-day returns; ts_sum over 5 days; group_rank by country",
+   "roles": {
+    "news_count": {
+     "patterns": [
+      "^story count",
+      "number of (news )?(stories|articles)",
+      "count of (news|stories)"
+     ],
+     "exclude": [
+      "fast_d1",
+      "prob",
+      "rank",
+      "label",
+      "bin",
+      "quantile",
+      "img",
+      "chunk",
+      "sentence",
+      "word"
+     ],
+     "prefer": [
+      "story count"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "role: news_count (coverage floor 0.5 for this region)",
+   "papers": [
+    "Jiang, Li and Wang (2021) 'Pervasive underreaction: Evidence from high-frequency data', Journal of Financial Economics 141(2) 573-599",
+    "Chen, Kelly and Xiu (2022-2024) 'Expected Returns and Large Language Models' (working paper; 16 international markets, 13 languages)"
+   ],
+   "evidence": "Prices drift for several days in the direction of the news-day move, without reversal; stronger when investors are distracted; profitable after costs (Jiang et al.). News-text return predictions work in 16 international markets, consistent with slow reaction to news (Chen et al.).",
+   "sources": [
+    "https://ideas.repec.org:443/a/eee/jfinec/v141y2021i2p573-599.html",
+    "https://nlpecofin.web.ox.ac.uk/node/3041271"
+   ]
+  },
+  {
+   "id": "glb_news_day_drift",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "news_drift",
+   "expression": "group_rank(ts_sum(if_else({news_count} > 0, returns, 0), 5), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "news-day returns drift, as in the U.S.; news-text predictions work in 16 international markets.",
+   "rationale_data": "returns and the number of news stories per stock",
+   "rationale_operators": "if_else keeps news-day returns; ts_sum over 5 days; group_rank by country",
+   "roles": {
+    "news_count": {
+     "patterns": [
+      "^story count",
+      "number of (news )?(stories|articles)",
+      "count of (news|stories)"
+     ],
+     "exclude": [
+      "fast_d1",
+      "prob",
+      "rank",
+      "label",
+      "bin",
+      "quantile",
+      "img",
+      "chunk",
+      "sentence",
+      "word"
+     ],
+     "prefer": [
+      "story count"
+     ],
+     "min_coverage": 0.5
+    }
+   },
+   "fields": "role: news_count (coverage floor 0.5 for this region)",
+   "papers": [
+    "Jiang, Li and Wang (2021) 'Pervasive underreaction: Evidence from high-frequency data', Journal of Financial Economics 141(2) 573-599",
+    "Chen, Kelly and Xiu (2022-2024) 'Expected Returns and Large Language Models' (working paper; 16 international markets, 13 languages)"
+   ],
+   "evidence": "Prices drift for several days in the direction of the news-day move, without reversal; stronger when investors are distracted; profitable after costs (Jiang et al.). News-text return predictions work in 16 international markets, consistent with slow reaction to news (Chen et al.).",
+   "sources": [
+    "https://ideas.repec.org:443/a/eee/jfinec/v141y2021i2p573-599.html",
+    "https://nlpecofin.web.ox.ac.uk/node/3041271"
+   ]
+  },
+  {
+   "id": "eur_carbon_level",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "carbon",
+   "expression": "rank(log(ts_backfill({carbon_emissions}, 252)) - regression_proj(log(ts_backfill({carbon_emissions}, 252)), log(cap)))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "investors demand compensation for carbon-transition risk: high emitters earn higher returns, most where domestic climate policy is strict, as in Europe.",
+   "rationale_data": "total (scope 1 and 2) emissions and market capitalization",
+   "rationale_operators": "log emissions minus their cross-sectional projection on log cap (regression_proj has an intercept) removes the size effect; industry neutralization compares within industries",
+   "roles": {
+    "carbon_emissions": {
+     "type": "MATRIX",
+     "patterns": [
+      "(scope 1|scope 1 and 2|total|absolute).{0,40}(ghg|greenhouse gas|carbon|co2) emissions",
+      "(ghg|greenhouse gas|carbon|co2) emissions"
+     ],
+     "exclude": [
+      "intensity",
+      "per (unit|million|revenue|employee)",
+      "/ revenue",
+      "estimat",
+      "target",
+      "reduction",
+      "score",
+      "rank",
+      "percentile",
+      "change",
+      "growth",
+      "scope 3",
+      "flag",
+      "disclos",
+      "avoided"
+     ],
+     "prefer": [
+      "scope 1",
+      "total",
+      "absolute"
+     ],
+     "search": [
+      "carbon emissions",
+      "ghg emissions",
+      "co2 emissions"
+     ],
+     "min_coverage": 0.2
+    }
+   },
+   "fields": "role (speculative: may not exist on BRAIN)",
+   "risk": "contested premium; annual data",
+   "papers": [
+    "Bolton and Kacperczyk (2023) 'Global Pricing of Carbon-Transition Risk', Journal of Finance 78(6) 3677-3754",
+    "Bolton and Kacperczyk (2021) 'Do investors care about carbon risk?', Journal of Financial Economics 142(2)"
+   ],
+   "evidence": "Across 14,400 firms in 77 countries, returns rise with the level and the growth of emissions; level premia are higher where domestic climate policy is stricter (Europe), growth premia where economies are less developed (GLB). Contested: later work attributes part of it to vendor-estimated emissions (from memory).",
+   "sources": [
+    "https://academicnewsletter.sufe.edu.cn/info/359044"
+   ]
+  },
+  {
+   "id": "glb_carbon_growth",
+   "region": "GLB",
+   "universe": "MINVOL1M",
+   "delay": 1,
+   "theme": "carbon",
+   "expression": "group_rank(log(ts_backfill({carbon_emissions}, 252) / ts_delay(ts_backfill({carbon_emissions}, 252), 252)), country)",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "emission growth carries a transition-risk premium that is larger in less developed, energy-heavy economies.",
+   "rationale_data": "total (scope 1 and 2) emissions",
+   "rationale_operators": "log of emissions over emissions a year earlier; group_rank by country",
+   "roles": {
+    "carbon_emissions": {
+     "type": "MATRIX",
+     "patterns": [
+      "(scope 1|scope 1 and 2|total|absolute).{0,40}(ghg|greenhouse gas|carbon|co2) emissions",
+      "(ghg|greenhouse gas|carbon|co2) emissions"
+     ],
+     "exclude": [
+      "intensity",
+      "per (unit|million|revenue|employee)",
+      "/ revenue",
+      "estimat",
+      "target",
+      "reduction",
+      "score",
+      "rank",
+      "percentile",
+      "change",
+      "growth",
+      "scope 3",
+      "flag",
+      "disclos",
+      "avoided"
+     ],
+     "prefer": [
+      "scope 1",
+      "total",
+      "absolute"
+     ],
+     "search": [
+      "carbon emissions",
+      "ghg emissions",
+      "co2 emissions"
+     ],
+     "min_coverage": 0.2
+    }
+   },
+   "fields": "role (speculative: may not exist on BRAIN)",
+   "risk": "contested premium",
+   "papers": [
+    "Bolton and Kacperczyk (2023) 'Global Pricing of Carbon-Transition Risk', Journal of Finance 78(6) 3677-3754",
+    "Bolton and Kacperczyk (2021) 'Do investors care about carbon risk?', Journal of Financial Economics 142(2)"
+   ],
+   "evidence": "Across 14,400 firms in 77 countries, returns rise with the level and the growth of emissions; level premia are higher where domestic climate policy is stricter (Europe), growth premia where economies are less developed (GLB). Contested: later work attributes part of it to vendor-estimated emissions (from memory).",
+   "sources": [
+    "https://academicnewsletter.sufe.edu.cn/info/359044"
+   ]
+  },
+  {
+   "id": "eur_net_short_disclosure",
+   "region": "EUR",
+   "universe": "TOP2500",
+   "delay": 1,
+   "theme": "short_disclosure",
+   "expression": "-rank(ts_backfill({net_short_position}, 21))",
+   "neutralization": "INDUSTRY",
+   "decay": 4,
+   "idea": "large disclosed net short positions mark binding short-sale constraints and informed pessimism; such stocks earn lower subsequent returns.",
+   "rationale_data": "disclosed net short positions (EU short-selling regulation)",
+   "rationale_operators": "ts_backfill carries the last disclosure; the minus sign shorts heavily shorted stocks",
+   "roles": {
+    "net_short_position": {
+     "type": "MATRIX",
+     "patterns": [
+      "net short position",
+      "disclosed short position",
+      "short position.{0,30}disclos"
+     ],
+     "exclude": [
+      "count",
+      "number of",
+      "fast_d1"
+     ],
+     "search": [
+      "net short position"
+     ],
+     "min_coverage": 0.1
+    }
+   },
+   "fields": "role (speculative: may not exist on BRAIN)",
+   "papers": [
+    "Jank, Roling and Smajlbegovic (2021) 'Flying under the radar: The effects of short-sale disclosure rules on investor behavior and stock prices', Journal of Financial Economics 139(1) 209-233"
+   ],
+   "evidence": "Under the EU disclosure rule short positions pile up just below the threshold; where the constraint binds, stocks later earn -1.0 to -1.4% a month (working-paper figure). EUR only, and only if BRAIN carries position data.",
+   "sources": [
+    "https://www.bundesbank.de/en/publications/research/discussion-papers/flying-under-the-radar-the-effects-of-short-sale-disclosure-rules-on-investor-behavior-and-stock-prices-662740"
+   ]
+  }
+ ]
+}

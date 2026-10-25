@@ -63,8 +63,9 @@ def build_parser() -> argparse.ArgumentParser:
     _route_args(p)
     p = sub.add_parser("try", help="validate (and simulate) hand-written expressions through the same checks as LLM output")
     p.add_argument("expression", nargs="?")
-    p.add_argument("--file", help="JSON list of {expression, neutralization, decay, truncation, idea, rationale_data, "
-                                  "rationale_operators, hypothesis_id}")
+    p.add_argument("--file", help="JSON list (or {\"probes\": [...]}) of {expression, neutralization, decay, truncation, "
+                                  "idea, rationale_data, rationale_operators, hypothesis_id}; an entry may name its own "
+                                  "region / universe / delay, and {role} slots with optional \"roles\" specs")
     p.add_argument("--neutralization")
     p.add_argument("--decay", type=int)
     p.add_argument("--truncation", type=float)
@@ -181,6 +182,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("path")
     p.add_argument("--operators", help="operators JSON (list from GET /operators)")
     return ap
+
+
+def try_groups(raws: list[dict], args) -> dict:
+    """`p2a try` entries grouped by the scope each names (region / universe / delay). An entry without a region takes
+    the command line's scope; with --region, entries naming another region are left out."""
+    want = (args.region or "").upper()
+    groups: dict = {}
+    for raw in raws:
+        region = str(raw.get("region") or args.region or "").upper() or None  # BRAIN's region codes are upper case
+        if want and region and region != want:
+            continue
+        cli = not raw.get("region") or region == want  # the command line describes this region
+        key = (region, raw.get("universe") or (args.universe if cli else None),
+               raw.get("delay", args.delay if cli else None))
+        groups.setdefault(key, []).append(raw)
+    return groups
 
 
 def _table(title, columns, rows):
@@ -336,14 +353,24 @@ def _main(argv=None) -> int:
         return 0
     if cmd == "try":
         if args.file:
-            raws = json.loads(open(args.file).read())
+            data = json.loads(open(args.file).read())
+            raws = (data.get("probes") or []) if isinstance(data, dict) else data
         elif args.expression:
             raws = [{"expression": args.expression, "neutralization": args.neutralization, "decay": args.decay,
                      "truncation": args.truncation, "idea": args.idea, "hypothesis_id": args.hypothesis}]
         else:
             console.print("[red]give an expression or --file[/red]")
             return 1
-        ids = eng.try_candidates(scope, theme(), raws, route=route)
+        groups = try_groups(raws, args)
+        ids = []
+        for (region, universe, delay), group in groups.items():
+            sc = eng.regular_scope(region, universe, delay) if route == "regular" else eng.scope(region, universe, delay)
+            th = None if route == "regular" else eng.resolve_theme(sc, getattr(args, "theme", None),
+                                                                   not getattr(args, "no_theme", False))
+            if len(groups) > 1:
+                console.print(f"[bold]{sc['region']}/{sc['universe']}/D{sc['delay']}[/bold]: {len(group)} entr"
+                              f"{'y' if len(group) == 1 else 'ies'}")
+            ids += eng.try_candidates(sc, th, group, route=route)
         if ids and not args.no_sim:
             eng.simulate(ids=ids)
         return 0

@@ -8,6 +8,13 @@
   The combiner estimates each combination's last-two-years Sharpe and proposes only those that clear BRAIN's 2-year
   test. Five new mechanisms only run in the regions their research covers (CHN, IND, ASI, JPN): value, value without
   shell stocks, abnormal turnover, profitability, and country x industry value plus quality.
+- Deep research (25 Oct): `research/deep_research_round15.md` reviews well-regarded papers with U.S., European or global
+  evidence. `research/deep_research_round15.json` holds 45 unsimulated probes (USA 14, EUR 17, GLB 14) from them:
+  - net issuance, return seasonality, overnight-daytime tug of war, high-volume premium;
+  - vol-of-vol, target price against industry peers, long-term growth optimism, analyst bias, bold revisions;
+  - cash and gross profitability, asset growth, fresh-information timing, residual momentum, news-day drift;
+  - carbon and short disclosure (speculative).
+  `p2a try` now reads entries that name their own region and fills `{role}` slots from each region's catalog.
 
 ## Round 13: signal inventory and EUR source scan (20 Oct 2026)
 

@@ -309,11 +309,17 @@ class Engine:
     def try_candidates(self, scope: dict, theme: ThemeSpec | None, raws: list[dict], route: str = "power_pool") -> list[int]:
         """Hand-written candidates go through the same validation, settings policy and description checks as
         LLM output (raw keys: expression, neutralization, decay, truncation, idea, rationale_data,
-        rationale_operators, hypothesis_id)."""
+        rationale_operators, hypothesis_id). An expression may hold {role} slots, filled from this scope's live catalog
+        like a research mechanism's roles (research/mechanisms.yaml, or a spec in the entry's own "roles"): one file
+        then carries an idea to regions whose field ids differ. An entry whose role finds no field here is skipped."""
         ctx = self.context(scope, theme, route)
         gen = Generator(ctx)
         ids = []
         for raw in raws:
+            if "{" in str(raw.get("expression") or ""):
+                raw = self._fill_roles(ctx, raw)
+                if raw is None:
+                    continue
             c = gen.check(raw, origin="manual")
             hyp = raw.get("hypothesis_id")
             res = gen.save([c], int(hyp) if hyp else None)
@@ -327,6 +333,27 @@ class Engine:
                 console.print("        [dim]already in the database with these settings[/dim]")
             ids += res["ids"]
         return ids
+
+    def _fill_roles(self, ctx, raw: dict) -> dict | None:
+        """The entry with every {role} slot replaced by the best live field of this scope (its id and description are
+        added to the data rationale); None, with the reason printed, when a role is undefined or finds no field."""
+        from .mechanisms import _SLOT, RoleResolver, mechanism_library
+        roles = {**mechanism_library(ctx).roles, **(raw.get("roles") or {})}
+        resolver = RoleResolver(ctx, roles)
+        expr, found = raw["expression"], []
+        label = raw.get("id") or raw["expression"][:60]
+        for name in dict.fromkeys(_SLOT.findall(expr)):
+            cands = resolver.candidates(name) if name in roles else []
+            if not cands:
+                why = "is not defined (entry roles or research/mechanisms.yaml)" if name not in roles else "found no field"
+                sc = ctx.scope
+                console.print(f"   [yellow]SKP[/yellow] {esc(label)}: role '{name}' {why} in "
+                              f"{sc['region']}/{sc['universe']}/D{sc['delay']}")
+                return None
+            f = cands[0]
+            expr = expr.replace("{" + name + "}", resolver.expr(name, f))
+            found.append(f"{f['id']} ({f.get('dataset')}): {(f.get('description') or '')[:120]}")
+        return {**raw, "expression": expr, "rationale_data": "; ".join(x for x in [raw.get("rationale_data"), *found] if x)}
 
     def refine(self, scope: dict, theme: ThemeSpec | None, limit: int | None = None, use_llm: bool = True,
                ids: list[int] | None = None, route: str = "power_pool") -> list[int]:

@@ -194,6 +194,8 @@ python3 -m p2a check --top 5                  # BRAIN's read-only submission che
 python3 -m p2a describe 17 --apply            # put the Power Pool description on the BRAIN alpha
 python3 -m p2a try "rank(some_field)" --neutralization INDUSTRY   # your own idea, same validator + simulator
 python3 -m p2a try --file research/probes-2026-10-16.json         # a batch of researched probes
+python3 -m p2a try --file research/deep_research_round15.json --route regular --no-sim  # entries name their own region;
+                                                                  # {role} slots are filled from each region's catalog
 python3 -m p2a families                       # idea lifecycle: winners, promising, used, dropped (and why)
 python3 -m p2a queue                          # submittable alphas in the order to submit them
 python3 -m p2a explore --category analyst --simulate   # first-shape probes of untried fields in one category
